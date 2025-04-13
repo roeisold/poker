@@ -53,5 +53,4 @@ def calculate():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-if __name__ == "__main__":
-    app.run(debug=True)
+# Remove the if __name__ == "__main__" block or keep it only for local testing
