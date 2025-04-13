@@ -1,0 +1,189 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debt Settler</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 40px;
+        }
+        .friend-entry {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Debt Settler</h1>
+        <div class="row">
+            <div class="col-md-6 offset-md-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Enter Friends & Balances</h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="friendsForm">
+                            <div id="friendsList">
+                                <!-- Friend entries will be added here -->
+                            </div>
+                            <div class="mb-3">
+                                <button type="button" class="btn btn-secondary" id="addFriendBtn">+ Add Friend</button>
+                                <button type="submit" class="btn btn-primary float-end">Calculate</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="card mt-4" id="resultsCard" style="display: none;">
+                    <div class="card-header">
+                        <h4>Suggested Transactions</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="imbalanceWarning" class="alert alert-warning" style="display: none;"></div>
+                        <div id="balanceSuccess" class="alert alert-success" style="display: none;">✅ All balances correctly accounted for!</div>
+                        <ul id="transactionsList" class="list-group mb-3">
+                            <!-- Transactions will be listed here -->
+                        </ul>
+                        <button id="resetBtn" class="btn btn-outline-secondary">Reset</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const friendsList = document.getElementById('friendsList');
+            const addFriendBtn = document.getElementById('addFriendBtn');
+            const friendsForm = document.getElementById('friendsForm');
+            const resultsCard = document.getElementById('resultsCard');
+            const transactionsList = document.getElementById('transactionsList');
+            const imbalanceWarning = document.getElementById('imbalanceWarning');
+            const balanceSuccess = document.getElementById('balanceSuccess');
+            const resetBtn = document.getElementById('resetBtn');
+
+            // Add default 2 friends at start
+            addFriend();
+            addFriend();
+
+            addFriendBtn.addEventListener('click', addFriend);
+            
+            resetBtn.addEventListener('click', function() {
+                resultsCard.style.display = 'none';
+                friendsList.innerHTML = '';
+                addFriend();
+                addFriend();
+            });
+
+            friendsForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const friends = [];
+                const friendEntries = document.querySelectorAll('.friend-entry');
+                
+                friendEntries.forEach(entry => {
+                    const name = entry.querySelector('.friend-name').value.trim();
+                    const balanceStr = entry.querySelector('.friend-balance').value.trim();
+                    
+                    if (name && balanceStr) {
+                        const balance = parseFloat(balanceStr);
+                        friends.push([name, balance]);
+                    }
+                });
+                
+                if (friends.length < 2) {
+                    alert('Please add at least 2 friends with names and balances.');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/calculate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ friends }),
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        displayResults(data);
+                    } else {
+                        alert(`Error: ${data.error || 'Something went wrong'}`);
+                    }
+                } catch (error) {
+                    alert('Network error. Please try again.');
+                    console.error('Error:', error);
+                }
+            });
+
+            function addFriend() {
+                const friendId = Date.now();
+                const friendDiv = document.createElement('div');
+                friendDiv.className = 'friend-entry';
+                friendDiv.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-5 mb-2">
+                            <input type="text" class="form-control friend-name" placeholder="Name" required>
+                        </div>
+                        <div class="col-md-5 mb-2">
+                            <input type="number" class="form-control friend-balance" placeholder="Balance" step="0.01" required>
+                        </div>
+                        <div class="col-md-2 mb-2">
+                            <button type="button" class="btn btn-danger remove-friend">✕</button>
+                        </div>
+                    </div>
+                    <small class="text-muted">Enter positive value if they should receive money, negative if they should pay.</small>
+                `;
+                
+                const removeBtn = friendDiv.querySelector('.remove-friend');
+                removeBtn.addEventListener('click', function() {
+                    if (document.querySelectorAll('.friend-entry').length > 2) {
+                        friendDiv.remove();
+                    } else {
+                        alert('You need at least 2 friends to settle debts.');
+                    }
+                });
+                
+                friendsList.appendChild(friendDiv);
+            }
+
+            function displayResults(data) {
+                transactionsList.innerHTML = '';
+                
+                if (data.transactions.length === 0) {
+                    transactionsList.innerHTML = '<li class="list-group-item">No transactions needed!</li>';
+                } else {
+                    data.transactions.forEach(transaction => {
+                        const li = document.createElement('li');
+                        li.className = 'list-group-item';
+                        li.textContent = `${transaction.payer} pays ${transaction.receiver} ${transaction.amount.toFixed(2)}`;
+                        transactionsList.appendChild(li);
+                    });
+                }
+                
+                if (data.hasImbalance) {
+                    imbalanceWarning.textContent = `⚠️ Warning: Total balance mismatch of ${data.imbalance.toFixed(2)}. This means someone entered wrong amounts.`;
+                    imbalanceWarning.style.display = 'block';
+                    balanceSuccess.style.display = 'none';
+                } else {
+                    imbalanceWarning.style.display = 'none';
+                    balanceSuccess.style.display = 'block';
+                }
+                
+                resultsCard.style.display = 'block';
+                resultsCard.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    </script>
+</body>
+</html>
