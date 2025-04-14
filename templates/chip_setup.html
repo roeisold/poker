@@ -1,0 +1,132 @@
+<!-- templates/chip_setup.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Chip Setup</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 40px;
+        }
+        .chip-card {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .chip-image {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 10px;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Poker Chip Setup</h1>
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Set Chip Values</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            Set the monetary value for each color of poker chip.
+                        </div>
+                        
+                        <form id="chipValueForm">
+                            <div class="row">
+                                <div class="col-md-4 chip-card">
+                                    <img src="/static/white-chip.jpg" alt="White Chip" class="chip-image">
+                                    <div class="form-group">
+                                        <label for="white-value">White Chip</label>
+                                        <input type="number" class="form-control" id="white-value" value="{{ chip_values.white }}" min="0.01" step="0.01" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4 chip-card">
+                                    <img src="/static/red-chip.jpg" alt="Red Chip" class="chip-image">
+                                    <div class="form-group">
+                                        <label for="red-value">Red Chip</label>
+                                        <input type="number" class="form-control" id="red-value" value="{{ chip_values.red }}" min="0.01" step="0.01" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4 chip-card">
+                                    <img src="/static/green-chip.jpg" alt="Green Chip" class="chip-image">
+                                    <div class="form-group">
+                                        <label for="green-value">Green Chip</label>
+                                        <input type="number" class="form-control" id="green-value" value="{{ chip_values.green }}" min="0.01" step="0.01" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-4 offset-md-2 chip-card">
+                                    <img src="/static/blue-chip.jpg" alt="Blue Chip" class="chip-image">
+                                    <div class="form-group">
+                                        <label for="blue-value">Blue Chip</label>
+                                        <input type="number" class="form-control" id="blue-value" value="{{ chip_values.blue }}" min="0.01" step="0.01" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4 chip-card">
+                                    <img src="/static/black-chip.jpg" alt="Black Chip" class="chip-image">
+                                    <div class="form-group">
+                                        <label for="black-value">Black Chip</label>
+                                        <input type="number" class="form-control" id="black-value" value="{{ chip_values.black }}" min="0.01" step="0.01" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="text-center mt-4">
+                                <button type="submit" class="btn btn-primary">Save Chip Values</button>
+                                <a href="/" class="btn btn-secondary ml-2">Back to Debt Settler</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('chipValueForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const chipValues = {
+                "white": parseFloat(document.getElementById('white-value').value),
+                "red": parseFloat(document.getElementById('red-value').value),
+                "green": parseFloat(document.getElementById('green-value').value),
+                "blue": parseFloat(document.getElementById('blue-value').value),
+                "black": parseFloat(document.getElementById('black-value').value)
+            };
+            
+            try {
+                const response = await fetch('/save-chip-values', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(chipValues),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('Chip values saved successfully!');
+                    window.location.href = '/';
+                } else {
+                    alert(`Error: ${data.error || 'Something went wrong'}`);
+                }
+            } catch (error) {
+                alert('Network error. Please try again.');
+                console.error('Error:', error);
+            }
+        });
+    </script>
+</body>
+</html>

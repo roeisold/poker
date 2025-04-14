@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Debt Settler</title>
+    <title>Poker Debt Settler</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -12,31 +12,71 @@
             padding-bottom: 40px;
         }
         .friend-entry {
-            margin-bottom: 15px;
-            padding: 10px;
+            margin-bottom: 25px;
+            padding: 15px;
             border: 1px solid #e9ecef;
             border-radius: 5px;
             background-color: #f8f9fa;
+        }
+        .chip-input {
+            width: 60px;
+            display: inline-block;
+        }
+        .chip-img {
+            width: 30px;
+            height: 30px;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        .chip-container {
+            display: inline-block;
+            margin-right: 15px;
+            margin-bottom: 10px;
+        }
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+        .profit {
+            color: green;
+            font-weight: bold;
+        }
+        .loss {
+            color: red;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 class="text-center mb-4">Debt Settler</h1>
+        <h1 class="text-center mb-3">Poker Debt Settler</h1>
+        
+        <div class="row mb-3">
+            <div class="col-md-6 offset-md-3 text-center">
+                <a href="/chip-setup" class="btn btn-outline-primary">Poker Chip Setup</a>
+                <p class="mt-2 small">Current chip values: 
+                    White: {{ chip_values.white }}, 
+                    Red: {{ chip_values.red }}, 
+                    Green: {{ chip_values.green }}, 
+                    Blue: {{ chip_values.blue }}, 
+                    Black: {{ chip_values.black }}
+                </p>
+            </div>
+        </div>
+        
         <div class="row">
-            <div class="col-md-6 offset-md-3">
+            <div class="col-md-10 offset-md-1">
                 <div class="card">
                     <div class="card-header">
-                        <h4>Enter Friends & Balances</h4>
+                        <h4>Player Entry</h4>
                     </div>
                     <div class="card-body">
-                        <form id="friendsForm">
+                        <form id="playerForm">
                             <div id="friendsList">
-                                <!-- Friend entries will be added here -->
+                                <!-- Player entries will be added here -->
                             </div>
                             <div class="mb-3">
-                                <button type="button" class="btn btn-secondary" id="addFriendBtn">+ Add Friend</button>
-                                <button type="submit" class="btn btn-primary float-end">Calculate</button>
+                                <button type="button" class="btn btn-secondary" id="addPlayerBtn">+ Add Player</button>
+                                <button type="submit" class="btn btn-primary float-end">Calculate Settlement</button>
                             </div>
                         </form>
                     </div>
@@ -44,63 +84,129 @@
                 
                 <div class="card mt-4" id="resultsCard" style="display: none;">
                     <div class="card-header">
-                        <h4>Suggested Transactions</h4>
+                        <h4>Results</h4>
                     </div>
                     <div class="card-body">
-                        <div id="imbalanceWarning" class="alert alert-warning" style="display: none;"></div>
-                        <div id="balanceSuccess" class="alert alert-success" style="display: none;">✅ All balances correctly accounted for!</div>
-                        <ul id="transactionsList" class="list-group mb-3">
-                            <!-- Transactions will be listed here -->
+                        <ul class="nav nav-tabs" id="resultTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab">Summary</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="transactions-tab" data-bs-toggle="tab" data-bs-target="#transactions" type="button" role="tab">Transactions</button>
+                            </li>
                         </ul>
-                        <button id="resetBtn" class="btn btn-outline-secondary">Reset</button>
+                        
+                        <div class="tab-content mt-3" id="resultTabContent">
+                            <div class="tab-pane fade show active" id="summary" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th>Player</th>
+                                                <th>Buy In</th>
+                                                <th>Chip Total</th>
+                                                <th>Profit/Loss</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="summaryTable">
+                                            <!-- Summary data will be inserted here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <div class="tab-pane fade" id="transactions" role="tabpanel">
+                                <div id="imbalanceWarning" class="alert alert-warning" style="display: none;"></div>
+                                <div id="balanceSuccess" class="alert alert-success" style="display: none;">✅ All balances correctly accounted for!</div>
+                                <ul id="transactionsList" class="list-group mb-3">
+                                    <!-- Transactions will be listed here -->
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <button id="resetBtn" class="btn btn-outline-secondary mt-3">Reset</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Store chip values for calculations
+        const chipValues = {
+            white: {{ chip_values.white }},
+            red: {{ chip_values.red }},
+            green: {{ chip_values.green }},
+            blue: {{ chip_values.blue }},
+            black: {{ chip_values.black }}
+        };
+        
         document.addEventListener('DOMContentLoaded', function() {
             const friendsList = document.getElementById('friendsList');
-            const addFriendBtn = document.getElementById('addFriendBtn');
-            const friendsForm = document.getElementById('friendsForm');
+            const addPlayerBtn = document.getElementById('addPlayerBtn');
+            const playerForm = document.getElementById('playerForm');
             const resultsCard = document.getElementById('resultsCard');
             const transactionsList = document.getElementById('transactionsList');
+            const summaryTable = document.getElementById('summaryTable');
             const imbalanceWarning = document.getElementById('imbalanceWarning');
             const balanceSuccess = document.getElementById('balanceSuccess');
             const resetBtn = document.getElementById('resetBtn');
 
-            // Add default 2 friends at start
-            addFriend();
-            addFriend();
+            // Add default 2 players at start
+            addPlayer();
+            addPlayer();
 
-            addFriendBtn.addEventListener('click', addFriend);
+            addPlayerBtn.addEventListener('click', addPlayer);
             
             resetBtn.addEventListener('click', function() {
                 resultsCard.style.display = 'none';
                 friendsList.innerHTML = '';
-                addFriend();
-                addFriend();
+                addPlayer();
+                addPlayer();
             });
 
-            friendsForm.addEventListener('submit', async function(e) {
+            playerForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
                 const friends = [];
-                const friendEntries = document.querySelectorAll('.friend-entry');
+                const buyIns = {};
+                const chipCounts = {};
                 
-                friendEntries.forEach(entry => {
+                const playerEntries = document.querySelectorAll('.friend-entry');
+                
+                playerEntries.forEach(entry => {
                     const name = entry.querySelector('.friend-name').value.trim();
-                    const balanceStr = entry.querySelector('.friend-balance').value.trim();
+                    if (!name) return;
                     
-                    if (name && balanceStr) {
-                        const balance = parseFloat(balanceStr);
-                        friends.push([name, balance]);
-                    }
+                    const buyIn = parseFloat(entry.querySelector('.buy-in').value) || 0;
+                    buyIns[name] = buyIn;
+                    
+                    // Get chip counts
+                    chipCounts[name] = {
+                        white: parseInt(entry.querySelector('.white-count').value) || 0,
+                        red: parseInt(entry.querySelector('.red-count').value) || 0,
+                        green: parseInt(entry.querySelector('.green-count').value) || 0,
+                        blue: parseInt(entry.querySelector('.blue-count').value) || 0,
+                        black: parseInt(entry.querySelector('.black-count').value) || 0
+                    };
+                    
+                    // Calculate player's chip value total
+                    const chipTotal = 
+                        chipCounts[name].white * chipValues.white +
+                        chipCounts[name].red * chipValues.red +
+                        chipCounts[name].green * chipValues.green +
+                        chipCounts[name].blue * chipValues.blue +
+                        chipCounts[name].black * chipValues.black;
+                    
+                    // Calculate profit/loss
+                    const balance = chipTotal - buyIn;
+                    
+                    friends.push([name, balance]);
                 });
                 
                 if (friends.length < 2) {
-                    alert('Please add at least 2 friends with names and balances.');
+                    alert('Please add at least 2 players with names.');
                     return;
                 }
                 
@@ -110,7 +216,11 @@
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ friends }),
+                        body: JSON.stringify({ 
+                            friends,
+                            buy_ins: buyIns,
+                            chip_counts: chipCounts
+                        }),
                     });
                     
                     const data = await response.json();
@@ -126,23 +236,54 @@
                 }
             });
 
-            function addFriend() {
+            function addPlayer() {
                 const friendId = Date.now();
                 const friendDiv = document.createElement('div');
                 friendDiv.className = 'friend-entry';
                 friendDiv.innerHTML = `
-                    <div class="row">
-                        <div class="col-md-5 mb-2">
-                            <input type="text" class="form-control friend-name" placeholder="Name" required>
+                    <div class="row mb-2">
+                        <div class="col-md-5">
+                            <input type="text" class="form-control friend-name" placeholder="Player Name" required>
                         </div>
-                        <div class="col-md-5 mb-2">
-                            <input type="number" class="form-control friend-balance" placeholder="Balance" step="0.01" required>
+                        <div class="col-md-5">
+                            <div class="input-group">
+                                <span class="input-group-text">Buy In</span>
+                                <input type="number" class="form-control buy-in" placeholder="Amount" step="0.01" value="0">
+                            </div>
                         </div>
-                        <div class="col-md-2 mb-2">
-                            <button type="button" class="btn btn-danger remove-friend">✕</button>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-danger remove-friend">Remove</button>
                         </div>
                     </div>
-                    <small class="text-muted">Enter positive value if they should receive money, negative if they should pay.</small>
+                    <div class="row mb-2">
+                        <div class="col-12">
+                            <strong>Chip Count:</strong>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="chip-container">
+                                <img src="/static/white-chip.jpg" alt="White" class="chip-img">
+                                <input type="number" class="form-control chip-input white-count" value="0" min="0">
+                            </div>
+                            <div class="chip-container">
+                                <img src="/static/red-chip.jpg" alt="Red" class="chip-img">
+                                <input type="number" class="form-control chip-input red-count" value="0" min="0">
+                            </div>
+                            <div class="chip-container">
+                                <img src="/static/green-chip.jpg" alt="Green" class="chip-img">
+                                <input type="number" class="form-control chip-input green-count" value="0" min="0">
+                            </div>
+                            <div class="chip-container">
+                                <img src="/static/blue-chip.jpg" alt="Blue" class="chip-img">
+                                <input type="number" class="form-control chip-input blue-count" value="0" min="0">
+                            </div>
+                            <div class="chip-container">
+                                <img src="/static/black-chip.jpg" alt="Black" class="chip-img">
+                                <input type="number" class="form-control chip-input black-count" value="0" min="0">
+                            </div>
+                        </div>
+                    </div>
                 `;
                 
                 const removeBtn = friendDiv.querySelector('.remove-friend');
@@ -150,7 +291,7 @@
                     if (document.querySelectorAll('.friend-entry').length > 2) {
                         friendDiv.remove();
                     } else {
-                        alert('You need at least 2 friends to settle debts.');
+                        alert('You need at least 2 players to settle debts.');
                     }
                 });
                 
@@ -158,6 +299,23 @@
             }
 
             function displayResults(data) {
+                // Display summary tab
+                summaryTable.innerHTML = '';
+                data.friends_summary.forEach(friend => {
+                    const row = document.createElement('tr');
+                    const profitLossClass = friend.profit_loss >= 0 ? 'profit' : 'loss';
+                    
+                    row.innerHTML = `
+                        <td>${friend.name}</td>
+                        <td>${friend.buy_in.toFixed(2)}</td>
+                        <td>${friend.chip_total.toFixed(2)}</td>
+                        <td class="${profitLossClass}">${friend.profit_loss.toFixed(2)}</td>
+                    `;
+                    
+                    summaryTable.appendChild(row);
+                });
+                
+                // Display transactions tab
                 transactionsList.innerHTML = '';
                 
                 if (data.transactions.length === 0) {
