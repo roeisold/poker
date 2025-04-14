@@ -94,8 +94,10 @@
                             </li>
                         </ul>
                         
-                        <div class="tab-content mt-3" id="resultTabContent">
+                        <div class="tab-content">
                             <div class="tab-pane fade show active" id="summary" role="tabpanel">
+                                <div id="imbalanceInfo" class="alert alert-warning mb-3" style="display: none;"></div>
+                                
                                 <div class="table-responsive">
                                     <table class="table table-bordered">
                                         <thead>
@@ -103,16 +105,20 @@
                                                 <th>Player</th>
                                                 <th>Buy In</th>
                                                 <th>Chip Total</th>
-                                                <th>Profit/Loss</th>
+                                                <th>Original Profit/Loss</th>
+                                                <th>Adjusted Profit/Loss</th>
                                             </tr>
                                         </thead>
                                         <tbody id="summaryTable">
                                             <!-- Summary data will be inserted here -->
                                         </tbody>
+                                        <tfoot id="summaryTableFooter" style="font-weight: bold;">
+                                            <!-- Totals will be inserted here -->
+                                        </tfoot>
                                     </table>
                                 </div>
                             </div>
-                            
+                                
                             <div class="tab-pane fade" id="transactions" role="tabpanel">
                                 <div id="imbalanceWarning" class="alert alert-warning" style="display: none;"></div>
                                 <div id="balanceSuccess" class="alert alert-success" style="display: none;">✅ All balances correctly accounted for!</div>
@@ -145,6 +151,27 @@
             const imbalanceWarning = document.getElementById('imbalanceWarning');
             const balanceSuccess = document.getElementById('balanceSuccess');
             const resetBtn = document.getElementById('resetBtn');
+            
+            // Initialize tabs
+            const summaryTab = document.getElementById('summary-tab');
+            const transactionsTab = document.getElementById('transactions-tab');
+            const summaryPane = document.getElementById('summary');
+            const transactionsPane = document.getElementById('transactions');
+            
+            // Tab click handlers
+            summaryTab.addEventListener('click', function() {
+                summaryTab.classList.add('active');
+                transactionsTab.classList.remove('active');
+                summaryPane.classList.add('show', 'active');
+                transactionsPane.classList.remove('show', 'active');
+            });
+            
+            transactionsTab.addEventListener('click', function() {
+                transactionsTab.classList.add('active');
+                summaryTab.classList.remove('active');
+                transactionsPane.classList.add('show', 'active');
+                summaryPane.classList.remove('show', 'active');
+            });
 
             // Add default 2 players at start
             addPlayer();
@@ -287,58 +314,58 @@
             function displayResults(data) {
                 // Display summary tab
                 summaryTable.innerHTML = '';
+                summaryTableFooter.innerHTML = '';
                 
-                // Add table header
-                const headerRow = document.createElement('tr');
-                headerRow.innerHTML = `
-                    <th>Player</th>
-                    <th>Buy In</th>
-                    <th>Chip Total</th>
-                    <th>Profit/Loss</th>
-                    ${data.hasImbalance ? '<th>Adjusted P/L</th>' : ''}
-                `;
-                summaryTable.appendChild(headerRow);
+                // Show imbalance info if needed
+                if (data.hasImbalance) {
+                    imbalanceInfo.textContent = `An imbalance of ${data.original_imbalance.toFixed(2)} was detected and has been distributed equally among all players.`;
+                    imbalanceInfo.style.display = 'block';
+                } else {
+                    imbalanceInfo.style.display = 'none';
+                }
                 
-                // Add rows for each player
+                // Calculate totals for footer
+                let totalBuyIn = 0;
+                let totalChips = 0;
+                let totalOriginalPL = 0;
+                let totalAdjustedPL = 0;
+                
                 data.friends_summary.forEach(friend => {
                     const row = document.createElement('tr');
+                    const origProfitLossClass = friend.original_profit_loss >= 0 ? 'profit' : 'loss';
+                    const adjProfitLossClass = friend.profit_loss >= 0 ? 'profit' : 'loss';
                     
-                    // Determine profit/loss classes
-                    const originalProfitLossClass = friend.original_profit_loss >= 0 ? 'profit' : 'loss';
-                    const adjustedProfitLossClass = friend.profit_loss >= 0 ? 'profit' : 'loss';
+                    // Update totals
+                    totalBuyIn += friend.buy_in;
+                    totalChips += friend.chip_total;
+                    totalOriginalPL += friend.original_profit_loss;
+                    totalAdjustedPL += friend.profit_loss;
                     
-                    // Create row HTML
-                    let rowHTML = `
+                    row.innerHTML = `
                         <td>${friend.name}</td>
                         <td>${friend.buy_in.toFixed(2)}</td>
                         <td>${friend.chip_total.toFixed(2)}</td>
-                        <td class="${originalProfitLossClass}">${friend.original_profit_loss.toFixed(2)}</td>
+                        <td class="${origProfitLossClass}">${friend.original_profit_loss.toFixed(2)}</td>
+                        <td class="${adjProfitLossClass}">${friend.profit_loss.toFixed(2)}</td>
                     `;
                     
-                    // Add the adjusted column only if there was an imbalance
-                    if (data.hasImbalance) {
-                        rowHTML += `<td class="${adjustedProfitLossClass}">${friend.profit_loss.toFixed(2)}</td>`;
-                    }
-                    
-                    row.innerHTML = rowHTML;
                     summaryTable.appendChild(row);
                 });
                 
-                // Add total row if there was an imbalance
-                if (data.hasImbalance) {
-                    const totalRow = document.createElement('tr');
-                    totalRow.className = 'table-secondary';
-                    totalRow.innerHTML = `
-                        <td colspan="3"><strong>Total Imbalance:</strong></td>
-                        <td class="${data.original_imbalance >= 0 ? 'profit' : 'loss'}">
-                            <strong>${data.original_imbalance.toFixed(2)}</strong>
-                        </td>
-                        <td class="${data.imbalance >= 0 ? 'profit' : 'loss'}">
-                            <strong>${data.imbalance.toFixed(2)}</strong>
-                        </td>
-                    `;
-                    summaryTable.appendChild(totalRow);
-                }
+                // Add footer with totals
+                const footerRow = document.createElement('tr');
+                const origTotalClass = totalOriginalPL >= 0 ? 'profit' : 'loss';
+                const adjTotalClass = totalAdjustedPL >= 0 ? 'profit' : 'loss';
+                
+                footerRow.innerHTML = `
+                    <td>Total</td>
+                    <td>${totalBuyIn.toFixed(2)}</td>
+                    <td>${totalChips.toFixed(2)}</td>
+                    <td class="${origTotalClass}">${totalOriginalPL.toFixed(2)}</td>
+                    <td class="${adjTotalClass}">${totalAdjustedPL.toFixed(2)}</td>
+                `;
+                
+                summaryTableFooter.appendChild(footerRow);
                 
                 // Display transactions tab
                 transactionsList.innerHTML = '';
@@ -355,7 +382,7 @@
                 }
                 
                 if (data.hasImbalance) {
-                    imbalanceWarning.textContent = `⚠️ Warning: Total balance mismatch of ${data.original_imbalance.toFixed(2)} was detected and has been distributed equally among all players.`;
+                    imbalanceWarning.textContent = `⚠️ Original total balance mismatch was ${data.original_imbalance.toFixed(2)}. Final imbalance after adjustment: ${data.imbalance.toFixed(2)}`;
                     imbalanceWarning.style.display = 'block';
                     balanceSuccess.style.display = 'none';
                 } else {
