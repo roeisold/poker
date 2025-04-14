@@ -287,32 +287,58 @@
             function displayResults(data) {
                 // Display summary tab
                 summaryTable.innerHTML = '';
+                
+                // Add table header
+                const headerRow = document.createElement('tr');
+                headerRow.innerHTML = `
+                    <th>Player</th>
+                    <th>Buy In</th>
+                    <th>Chip Total</th>
+                    <th>Profit/Loss</th>
+                    ${data.hasImbalance ? '<th>Adjusted P/L</th>' : ''}
+                `;
+                summaryTable.appendChild(headerRow);
+                
+                // Add rows for each player
                 data.friends_summary.forEach(friend => {
                     const row = document.createElement('tr');
-                    const profitLossClass = friend.profit_loss >= 0 ? 'profit' : 'loss';
+                    
+                    // Determine profit/loss classes
                     const originalProfitLossClass = friend.original_profit_loss >= 0 ? 'profit' : 'loss';
+                    const adjustedProfitLossClass = friend.profit_loss >= 0 ? 'profit' : 'loss';
                     
-                    // Show both original and adjusted values if there was an imbalance
-                    let profitLossDisplay;
-                    if (data.hasImbalance) {
-                        profitLossDisplay = `
-                            <span class="${originalProfitLossClass}" title="Original value">${friend.original_profit_loss.toFixed(2)}</span>
-                            →
-                            <span class="${profitLossClass}" title="Adjusted value">${friend.profit_loss.toFixed(2)}</span>
-                        `;
-                    } else {
-                        profitLossDisplay = `<span class="${profitLossClass}">${friend.profit_loss.toFixed(2)}</span>`;
-                    }
-                    
-                    row.innerHTML = `
+                    // Create row HTML
+                    let rowHTML = `
                         <td>${friend.name}</td>
                         <td>${friend.buy_in.toFixed(2)}</td>
                         <td>${friend.chip_total.toFixed(2)}</td>
-                        <td>${profitLossDisplay}</td>
+                        <td class="${originalProfitLossClass}">${friend.original_profit_loss.toFixed(2)}</td>
                     `;
                     
+                    // Add the adjusted column only if there was an imbalance
+                    if (data.hasImbalance) {
+                        rowHTML += `<td class="${adjustedProfitLossClass}">${friend.profit_loss.toFixed(2)}</td>`;
+                    }
+                    
+                    row.innerHTML = rowHTML;
                     summaryTable.appendChild(row);
                 });
+                
+                // Add total row if there was an imbalance
+                if (data.hasImbalance) {
+                    const totalRow = document.createElement('tr');
+                    totalRow.className = 'table-secondary';
+                    totalRow.innerHTML = `
+                        <td colspan="3"><strong>Total Imbalance:</strong></td>
+                        <td class="${data.original_imbalance >= 0 ? 'profit' : 'loss'}">
+                            <strong>${data.original_imbalance.toFixed(2)}</strong>
+                        </td>
+                        <td class="${data.imbalance >= 0 ? 'profit' : 'loss'}">
+                            <strong>${data.imbalance.toFixed(2)}</strong>
+                        </td>
+                    `;
+                    summaryTable.appendChild(totalRow);
+                }
                 
                 // Display transactions tab
                 transactionsList.innerHTML = '';
@@ -328,16 +354,12 @@
                     });
                 }
                 
-                // Always show imbalance information
                 if (data.hasImbalance) {
-                    imbalanceWarning.innerHTML = `⚠️ Warning: Total balance mismatch of ${data.original_imbalance.toFixed(2)}. 
-                        <br>This has been distributed evenly among all players.
-                        <br>Final imbalance: ${data.imbalance.toFixed(2)}`;
+                    imbalanceWarning.textContent = `⚠️ Warning: Total balance mismatch of ${data.original_imbalance.toFixed(2)} was detected and has been distributed equally among all players.`;
                     imbalanceWarning.style.display = 'block';
                     balanceSuccess.style.display = 'none';
                 } else {
                     imbalanceWarning.style.display = 'none';
-                    balanceSuccess.innerHTML = `✅ All balances correctly accounted for! Total balance: ${data.imbalance.toFixed(2)}`;
                     balanceSuccess.style.display = 'block';
                 }
                 

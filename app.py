@@ -90,7 +90,7 @@ def calculate():
         logger.info(f"Lowest chip value: {lowest_chip_value}")
         
         # Process chip counts and calculate actual balances
-        original_balances = {}  # Store original balances before adjustment
+        original_friends = []
         for i, friend in enumerate(friends):
             name, reported_balance = friend
             buy_in = data.get('buy_ins', {}).get(name, 0)
@@ -102,19 +102,21 @@ def calculate():
             
             # Calculate actual balance (chips - buy_in = profit/loss)
             actual_balance = chip_total - buy_in
-            original_balances[name] = actual_balance
             
             # Update friend data with calculated balance
             friends[i] = (name, actual_balance)
+            original_friends.append((name, actual_balance))
             logger.info(f"Friend {name}: buy_in={buy_in}, chip_total={chip_total}, actual_balance={actual_balance}")
         
         # Calculate total imbalance
         total_imbalance = sum(amt for _, amt in friends)
-        original_imbalance = total_imbalance  # Store original imbalance
+        original_imbalance = total_imbalance
         logger.info(f"Total imbalance before adjustment: {total_imbalance}")
         
+        # Store original balances before adjustment
+        original_balances = {name: balance for name, balance in friends}
+        
         # Distribute imbalance if it exists
-        adjusted_balances = {name: balance for name, balance in friends}  # Default to original balances
         if abs(total_imbalance) > 0.01:  # If there's a non-trivial imbalance
             logger.info(f"Non-trivial imbalance detected: {total_imbalance}, attempting to distribute")
             
@@ -127,7 +129,6 @@ def calculate():
             for name, balance in friends:
                 new_balance = balance + adjustment_per_friend
                 adjusted_friends.append((name, new_balance))
-                adjusted_balances[name] = new_balance
                 logger.info(f"Adjusted {name}: {balance} → {new_balance}")
             
             # Update friends list with adjusted balances
@@ -138,7 +139,7 @@ def calculate():
             logger.info(f"Total imbalance after adjustment: {new_total_imbalance}")
             
             # Log comparison to verify adjustments were applied correctly
-            for (orig_name, orig_balance), (adj_name, adj_balance) in zip([(n, original_balances[n]) for n, _ in original_balances.items()], friends):
+            for (orig_name, orig_balance), (adj_name, adj_balance) in zip(original_friends, friends):
                 logger.info(f"Friend {orig_name}: Original={orig_balance}, Adjusted={adj_balance}, Difference={adj_balance-orig_balance}")
         
         # Separate creditors and debtors
@@ -190,21 +191,21 @@ def calculate():
             chip_total = sum(chip_counts.get(color, 0) * chip_values.get(color, 0) 
                           for color in selected_chips if color in chip_values)
             
-            # Get original and adjusted balances
+            # Get the original (before adjustment) balance
             original_balance = original_balances.get(name, 0)
-            adjusted_balance = adjusted_balances.get(name, original_balance)
             
-            # Calculate adjusted chip total to reflect our distribution of imbalance
-            adjusted_chip_total = buy_in + adjusted_balance
+            # Find adjusted balance from our calculations
+            adjusted_balance = next((balance for friend_name, balance in friends if friend_name == name), 0)
             
             friends_summary.append({
                 "name": name,
                 "buy_in": buy_in,
-                "chip_total": adjusted_chip_total,
-                "original_profit_loss": original_balance,
-                "profit_loss": adjusted_balance
+                "chip_total": chip_total,  # Always use the actual chip total
+                "original_profit_loss": original_balance,  # Original profit/loss before adjustment
+                "profit_loss": adjusted_balance,  # Adjusted profit/loss
+                "had_adjustment": abs(original_balance - adjusted_balance) > 0.001  # Flag to indicate if this player was adjusted
             })
-            logger.info(f"Friend summary for {name}: buy_in={buy_in}, chip_total={adjusted_chip_total}, original_balance={original_balance}, adjusted_balance={adjusted_balance}")
+            logger.info(f"Friend summary for {name}: buy_in={buy_in}, chip_total={chip_total}, original_profit_loss={original_balance}, adjusted_profit_loss={adjusted_balance}")
         
         # Final balance check (should be very close to zero now)
         final_imbalance = sum(friend["profit_loss"] for friend in friends_summary)
@@ -220,7 +221,7 @@ def calculate():
             "transactions": transactions,
             "original_imbalance": round(original_imbalance, 2),
             "imbalance": round(final_imbalance, 2),
-            "hasImbalance": abs(original_imbalance) > 0.01,
+            "hasImbalance": abs(original_imbalance) > 0.01,  # Based on original imbalance
             "friends_summary": friends_summary,
             "lowest_chip_value": lowest_chip_value
         })
