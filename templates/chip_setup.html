@@ -14,6 +14,14 @@
         .chip-card {
             text-align: center;
             margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        .chip-card.selected {
+            background-color: #e9f7fd;
+            border-color: #9ad8f7;
         }
         .chip-image {
             width: 80px;
@@ -21,69 +29,51 @@
             margin-bottom: 10px;
             object-fit: contain;
         }
+        .chip-selection {
+            margin-bottom: 10px;
+        }
+        .form-check-input {
+            width: 20px;
+            height: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1 class="text-center mb-4">Poker Chip Setup</h1>
         <div class="row justify-content-center">
-            <div class="col-md-8">
+            <div class="col-md-10">
                 <div class="card">
                     <div class="card-header">
                         <h4>Set Chip Values</h4>
                     </div>
                     <div class="card-body">
                         <div class="alert alert-info">
-                            Set the monetary value for each color of poker chip.
+                            Select the chips you want to use and set their monetary values.
                         </div>
                         
                         <form id="chipValueForm">
                             <div class="row">
-                                <div class="col-md-4 chip-card">
-                                    <img src="/static/white-chip.jpg" alt="White Chip" class="chip-image">
-                                    <div class="form-group">
-                                        <label for="white-value">White Chip</label>
-                                        <input type="number" class="form-control" id="white-value" value="{{ chip_values.white }}" min="0.01" step="0.01" required>
+                                {% for chip in all_chips %}
+                                <div class="col-md-3">
+                                    <div class="chip-card {% if chip in selected_chips %}selected{% endif %}" id="chip-card-{{ chip }}">
+                                        <div class="chip-selection">
+                                            <input type="checkbox" class="form-check-input chip-checkbox" id="select-{{ chip }}" data-chip="{{ chip }}" 
+                                                {% if chip in selected_chips %}checked{% endif %}>
+                                            <label class="form-check-label" for="select-{{ chip }}">Use {{ chip.replace('-', ' ').title() }}</label>
+                                        </div>
+                                        <img src="/static/{{ chip }}-chip.jpg" alt="{{ chip }} Chip" class="chip-image">
+                                        <div class="form-group">
+                                            <label for="{{ chip }}-value">Value</label>
+                                            <input type="number" class="form-control" id="{{ chip }}-value" value="{{ chip_values[chip] }}" min="0.01" step="0.01" required>
+                                        </div>
                                     </div>
                                 </div>
-                                
-                                <div class="col-md-4 chip-card">
-                                    <img src="/static/red-chip.jpg" alt="Red Chip" class="chip-image">
-                                    <div class="form-group">
-                                        <label for="red-value">Red Chip</label>
-                                        <input type="number" class="form-control" id="red-value" value="{{ chip_values.red }}" min="0.01" step="0.01" required>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-4 chip-card">
-                                    <img src="/static/green-chip.jpg" alt="Green Chip" class="chip-image">
-                                    <div class="form-group">
-                                        <label for="green-value">Green Chip</label>
-                                        <input type="number" class="form-control" id="green-value" value="{{ chip_values.green }}" min="0.01" step="0.01" required>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row mt-3">
-                                <div class="col-md-4 offset-md-2 chip-card">
-                                    <img src="/static/blue-chip.jpg" alt="Blue Chip" class="chip-image">
-                                    <div class="form-group">
-                                        <label for="blue-value">Blue Chip</label>
-                                        <input type="number" class="form-control" id="blue-value" value="{{ chip_values.blue }}" min="0.01" step="0.01" required>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-4 chip-card">
-                                    <img src="/static/black-chip.jpg" alt="Black Chip" class="chip-image">
-                                    <div class="form-group">
-                                        <label for="black-value">Black Chip</label>
-                                        <input type="number" class="form-control" id="black-value" value="{{ chip_values.black }}" min="0.01" step="0.01" required>
-                                    </div>
-                                </div>
+                                {% endfor %}
                             </div>
                             
                             <div class="text-center mt-4">
-                                <button type="submit" class="btn btn-primary">Save Chip Values</button>
+                                <button type="submit" class="btn btn-primary">Save Chip Setup</button>
                                 <a href="/" class="btn btn-secondary ml-2">Back to Debt Settler</a>
                             </div>
                         </form>
@@ -94,38 +84,70 @@
     </div>
 
     <script>
-        document.getElementById('chipValueForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
+        document.addEventListener('DOMContentLoaded', function() {
+            // Handle chip selection
+            const checkboxes = document.querySelectorAll('.chip-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const chipCard = document.getElementById('chip-card-' + this.dataset.chip);
+                    if (this.checked) {
+                        chipCard.classList.add('selected');
+                    } else {
+                        chipCard.classList.remove('selected');
+                    }
+                });
+            });
             
-            const chipValues = {
-                "white": parseFloat(document.getElementById('white-value').value),
-                "red": parseFloat(document.getElementById('red-value').value),
-                "green": parseFloat(document.getElementById('green-value').value),
-                "blue": parseFloat(document.getElementById('blue-value').value),
-                "black": parseFloat(document.getElementById('black-value').value)
-            };
-            
-            try {
-                const response = await fetch('/save-chip-values', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(chipValues),
+            // Handle form submission
+            document.getElementById('chipValueForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const chipValues = {};
+                const selectedChips = [];
+                
+                // Collect all chip values
+                {% for chip in all_chips %}
+                chipValues["{{ chip }}"] = parseFloat(document.getElementById('{{ chip }}-value').value);
+                {% endfor %}
+                
+                // Collect selected chips
+                checkboxes.forEach(checkbox => {
+                    if (checkbox.checked) {
+                        selectedChips.push(checkbox.dataset.chip);
+                    }
                 });
                 
-                const data = await response.json();
-                
-                if (response.ok) {
-                    alert('Chip values saved successfully!');
-                    window.location.href = '/';
-                } else {
-                    alert(`Error: ${data.error || 'Something went wrong'}`);
+                // Validate at least one chip is selected
+                if (selectedChips.length === 0) {
+                    alert('Please select at least one chip color');
+                    return;
                 }
-            } catch (error) {
-                alert('Network error. Please try again.');
-                console.error('Error:', error);
-            }
+                
+                try {
+                    const response = await fetch('/save-chip-values', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            chip_values: chipValues,
+                            selected_chips: selectedChips
+                        }),
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        alert('Chip setup saved successfully!');
+                        window.location.href = '/';
+                    } else {
+                        alert(`Error: ${data.error || 'Something went wrong'}`);
+                    }
+                } catch (error) {
+                    alert('Network error. Please try again.');
+                    console.error('Error:', error);
+                }
+            });
         });
     </script>
 </body>

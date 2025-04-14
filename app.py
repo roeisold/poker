@@ -11,33 +11,61 @@ DEFAULT_CHIP_VALUES = {
     "red": 0.5,
     "green": 1,
     "blue": 2,
-    "black": 4
+    "black": 4,
+    "purple": 8,
+    "brown": 16,
+    "grey": 32,
+    "pink": 64,
+    "yellow": 128,
+    "orange": 256,
+    "burgundy": 512,
+    "light-blue": 1024
 }
+
+# Default selected chips
+DEFAULT_SELECTED_CHIPS = ["white", "red", "green", "blue", "black"]
 
 @app.route('/', methods=['GET'])
 def index():
-    # Initialize chip values in session if not already set
+    # Initialize chip values and selections in session if not already set
     if 'chip_values' not in session:
         session['chip_values'] = DEFAULT_CHIP_VALUES
-    return render_template('index.html', chip_values=session['chip_values'])
+    if 'selected_chips' not in session:
+        session['selected_chips'] = DEFAULT_SELECTED_CHIPS
+        
+    return render_template('index.html', 
+                          chip_values=session['chip_values'],
+                          selected_chips=session['selected_chips'])
 
 @app.route('/chip-setup', methods=['GET'])
 def chip_setup():
     # Use session values or defaults
     chip_values = session.get('chip_values', DEFAULT_CHIP_VALUES)
-    return render_template('chip_setup.html', chip_values=chip_values)
+    selected_chips = session.get('selected_chips', DEFAULT_SELECTED_CHIPS)
+    return render_template('chip_setup.html', 
+                          chip_values=chip_values,
+                          selected_chips=selected_chips,
+                          all_chips=list(DEFAULT_CHIP_VALUES.keys()))
 
 @app.route('/save-chip-values', methods=['POST'])
 def save_chip_values():
     try:
-        chip_values = request.json
+        data = request.json
+        chip_values = data.get('chip_values', {})
+        selected_chips = data.get('selected_chips', [])
+        
         # Validate values
         for color, value in chip_values.items():
             if not isinstance(value, (int, float)) or value <= 0:
                 return jsonify({"error": f"Invalid value for {color} chip"}), 400
         
+        # Validate that at least one chip is selected
+        if not selected_chips:
+            return jsonify({"error": "Please select at least one chip color"}), 400
+            
         # Save to session
         session['chip_values'] = chip_values
+        session['selected_chips'] = selected_chips
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -48,6 +76,7 @@ def calculate():
         data = request.json
         friends = data.get('friends', [])
         chip_values = session.get('chip_values', DEFAULT_CHIP_VALUES)
+        selected_chips = session.get('selected_chips', DEFAULT_SELECTED_CHIPS)
         
         # Process chip counts and calculate actual balances
         for i, friend in enumerate(friends):
@@ -55,8 +84,9 @@ def calculate():
             buy_in = data.get('buy_ins', {}).get(name, 0)
             chip_counts = data.get('chip_counts', {}).get(name, {})
             
-            # Calculate chip total
-            chip_total = sum(chip_counts.get(color, 0) * value for color, value in chip_values.items())
+            # Calculate chip total using only selected chips
+            chip_total = sum(chip_counts.get(color, 0) * chip_values.get(color, 0) 
+                          for color in selected_chips if color in chip_values)
             
             # Calculate actual balance (chips - buy_in = profit/loss)
             actual_balance = chip_total - buy_in
@@ -99,7 +129,11 @@ def calculate():
         for name, balance in data.get('friends', []):
             buy_in = data.get('buy_ins', {}).get(name, 0)
             chip_counts = data.get('chip_counts', {}).get(name, {})
-            chip_total = sum(chip_counts.get(color, 0) * value for color, value in chip_values.items())
+            
+            # Calculate chip total using only selected chips
+            chip_total = sum(chip_counts.get(color, 0) * chip_values.get(color, 0) 
+                          for color in selected_chips if color in chip_values)
+                          
             profit_loss = chip_total - buy_in
             
             friends_summary.append({

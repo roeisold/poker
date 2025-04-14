@@ -51,14 +51,12 @@
         <h1 class="text-center mb-3">Poker Debt Settler</h1>
         
         <div class="row mb-3">
-            <div class="col-md-6 offset-md-3 text-center">
+            <div class="col-md-8 offset-md-2 text-center">
                 <a href="/chip-setup" class="btn btn-outline-primary">Poker Chip Setup</a>
-                <p class="mt-2 small">Current chip values: 
-                    White: {{ chip_values.white }}, 
-                    Red: {{ chip_values.red }}, 
-                    Green: {{ chip_values.green }}, 
-                    Blue: {{ chip_values.blue }}, 
-                    Black: {{ chip_values.black }}
+                <p class="mt-2 small">Current chips: 
+                    {% for chip in selected_chips %}
+                    {{ chip.replace('-', ' ').title() }}: {{ chip_values[chip] }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
                 </p>
             </div>
         </div>
@@ -133,14 +131,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Store chip values for calculations
-        const chipValues = {
-            white: {{ chip_values.white }},
-            red: {{ chip_values.red }},
-            green: {{ chip_values.green }},
-            blue: {{ chip_values.blue }},
-            black: {{ chip_values.black }}
-        };
+        // Store selected chips and values
+        const chipValues = {{ chip_values|tojson }};
+        const selectedChips = {{ selected_chips|tojson }};
         
         document.addEventListener('DOMContentLoaded', function() {
             const friendsList = document.getElementById('friendsList');
@@ -182,22 +175,17 @@
                     const buyIn = parseFloat(entry.querySelector('.buy-in').value) || 0;
                     buyIns[name] = buyIn;
                     
-                    // Get chip counts
-                    chipCounts[name] = {
-                        white: parseInt(entry.querySelector('.white-count').value) || 0,
-                        red: parseInt(entry.querySelector('.red-count').value) || 0,
-                        green: parseInt(entry.querySelector('.green-count').value) || 0,
-                        blue: parseInt(entry.querySelector('.blue-count').value) || 0,
-                        black: parseInt(entry.querySelector('.black-count').value) || 0
-                    };
+                    // Get chip counts for selected chips only
+                    chipCounts[name] = {};
+                    selectedChips.forEach(chip => {
+                        chipCounts[name][chip] = parseInt(entry.querySelector(`.${chip}-count`).value) || 0;
+                    });
                     
                     // Calculate player's chip value total
-                    const chipTotal = 
-                        chipCounts[name].white * chipValues.white +
-                        chipCounts[name].red * chipValues.red +
-                        chipCounts[name].green * chipValues.green +
-                        chipCounts[name].blue * chipValues.blue +
-                        chipCounts[name].black * chipValues.black;
+                    let chipTotal = 0;
+                    selectedChips.forEach(chip => {
+                        chipTotal += (chipCounts[name][chip] || 0) * chipValues[chip];
+                    });
                     
                     // Calculate profit/loss
                     const balance = chipTotal - buyIn;
@@ -240,7 +228,9 @@
                 const friendId = Date.now();
                 const friendDiv = document.createElement('div');
                 friendDiv.className = 'friend-entry';
-                friendDiv.innerHTML = `
+                
+                // Create the player name and buy-in row
+                let playerHtml = `
                     <div class="row mb-2">
                         <div class="col-md-5">
                             <input type="text" class="form-control friend-name" placeholder="Player Name" required>
@@ -262,29 +252,25 @@
                     </div>
                     <div class="row">
                         <div class="col-md-12">
-                            <div class="chip-container">
-                                <img src="/static/white-chip.jpg" alt="White" class="chip-img">
-                                <input type="number" class="form-control chip-input white-count" value="0" min="0">
-                            </div>
-                            <div class="chip-container">
-                                <img src="/static/red-chip.jpg" alt="Red" class="chip-img">
-                                <input type="number" class="form-control chip-input red-count" value="0" min="0">
-                            </div>
-                            <div class="chip-container">
-                                <img src="/static/green-chip.jpg" alt="Green" class="chip-img">
-                                <input type="number" class="form-control chip-input green-count" value="0" min="0">
-                            </div>
-                            <div class="chip-container">
-                                <img src="/static/blue-chip.jpg" alt="Blue" class="chip-img">
-                                <input type="number" class="form-control chip-input blue-count" value="0" min="0">
-                            </div>
-                            <div class="chip-container">
-                                <img src="/static/black-chip.jpg" alt="Black" class="chip-img">
-                                <input type="number" class="form-control chip-input black-count" value="0" min="0">
-                            </div>
+                `;
+                
+                // Add inputs for each selected chip
+                selectedChips.forEach(chip => {
+                    playerHtml += `
+                        <div class="chip-container">
+                            <img src="/static/${chip}-chip.jpg" alt="${chip}" class="chip-img">
+                            <input type="number" class="form-control chip-input ${chip}-count" value="0" min="0">
+                        </div>
+                    `;
+                });
+                
+                // Close the HTML
+                playerHtml += `
                         </div>
                     </div>
                 `;
+                
+                friendDiv.innerHTML = playerHtml;
                 
                 const removeBtn = friendDiv.querySelector('.remove-friend');
                 removeBtn.addEventListener('click', function() {
