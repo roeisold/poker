@@ -290,12 +290,25 @@
                 data.friends_summary.forEach(friend => {
                     const row = document.createElement('tr');
                     const profitLossClass = friend.profit_loss >= 0 ? 'profit' : 'loss';
+                    const originalProfitLossClass = friend.original_profit_loss >= 0 ? 'profit' : 'loss';
+                    
+                    // Show both original and adjusted values if there was an imbalance
+                    let profitLossDisplay;
+                    if (data.hasImbalance) {
+                        profitLossDisplay = `
+                            <span class="${originalProfitLossClass}" title="Original value">${friend.original_profit_loss.toFixed(2)}</span>
+                            →
+                            <span class="${profitLossClass}" title="Adjusted value">${friend.profit_loss.toFixed(2)}</span>
+                        `;
+                    } else {
+                        profitLossDisplay = `<span class="${profitLossClass}">${friend.profit_loss.toFixed(2)}</span>`;
+                    }
                     
                     row.innerHTML = `
                         <td>${friend.name}</td>
                         <td>${friend.buy_in.toFixed(2)}</td>
                         <td>${friend.chip_total.toFixed(2)}</td>
-                        <td class="${profitLossClass}">${friend.profit_loss.toFixed(2)}</td>
+                        <td>${profitLossDisplay}</td>
                     `;
                     
                     summaryTable.appendChild(row);
@@ -315,12 +328,16 @@
                     });
                 }
                 
+                // Always show imbalance information
                 if (data.hasImbalance) {
-                    imbalanceWarning.textContent = `⚠️ Warning: Total balance mismatch of ${data.imbalance.toFixed(2)}. This means someone entered wrong amounts.`;
+                    imbalanceWarning.innerHTML = `⚠️ Warning: Total balance mismatch of ${data.original_imbalance.toFixed(2)}. 
+                        <br>This has been distributed evenly among all players.
+                        <br>Final imbalance: ${data.imbalance.toFixed(2)}`;
                     imbalanceWarning.style.display = 'block';
                     balanceSuccess.style.display = 'none';
                 } else {
                     imbalanceWarning.style.display = 'none';
+                    balanceSuccess.innerHTML = `✅ All balances correctly accounted for! Total balance: ${data.imbalance.toFixed(2)}`;
                     balanceSuccess.style.display = 'block';
                 }
                 
