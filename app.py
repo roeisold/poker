@@ -119,7 +119,7 @@ def calculate():
         
         # Distribute imbalance if it exists (but keep track of original values)
         adjusted_balances = {}
-        if abs(total_imbalance) > 0.01:  # If there's a non-trivial imbalance
+        if abs(total_imbalance) > lowest_chip_value:  # If there's a non-trivial imbalance
             logger.info(f"Non-trivial imbalance detected: {total_imbalance}, attempting to distribute")
             
             # Simple approach: just divide the imbalance equally among all friends
