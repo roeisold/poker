@@ -79,6 +79,8 @@ def calculate():
         
         data = request.json
         friends = data.get('friends', [])
+        
+        # Get chip values and selected chips from session, NOT default values
         chip_values = session.get('chip_values', DEFAULT_CHIP_VALUES)
         selected_chips = session.get('selected_chips', DEFAULT_SELECTED_CHIPS)
         
@@ -236,7 +238,7 @@ def calculate():
         logger.error(f"Error in calculate function: {str(e)}")
         logger.error(traceback.format_exc())
         return jsonify({"error": str(e)}), 400
-
+    
 @app.route('/static/<path:filename>')
 def static_files(filename):
     return app.send_static_file(filename)
