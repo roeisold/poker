@@ -1,10 +1,6 @@
-from flask import Flask, render_template, request, jsonify, session
-import os
+from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
-
-# --- CRITICAL FIX: Static key ensures your custom chip values persist ---
-app.secret_key = 'poker_settler_permanent_key_2024' 
 
 DEFAULT_CHIP_VALUES = {
     "white": 0.25, "red": 0.5, "green": 1, "blue": 2, "black": 4,
@@ -15,30 +11,25 @@ DEFAULT_SELECTED_CHIPS = ["white", "red", "green", "blue", "black"]
 
 @app.route('/', methods=['GET'])
 def index():
-    if 'chip_values' not in session:
-        session['chip_values'] = DEFAULT_CHIP_VALUES
-    if 'selected_chips' not in session:
-        session['selected_chips'] = DEFAULT_SELECTED_CHIPS
+    # Always use defaults - no session persistence
     return render_template('index.html', 
-                          chip_values=session['chip_values'],
-                          selected_chips=session['selected_chips'])
+                          chip_values=DEFAULT_CHIP_VALUES,
+                          selected_chips=DEFAULT_SELECTED_CHIPS)
 
 @app.route('/chip-setup', methods=['GET'])
 def chip_setup():
-    chip_values = session.get('chip_values', DEFAULT_CHIP_VALUES)
-    selected_chips = session.get('selected_chips', DEFAULT_SELECTED_CHIPS)
+    # Always use defaults - no session persistence
     return render_template('chip_setup.html', 
-                          chip_values=chip_values,
-                          selected_chips=selected_chips,
+                          chip_values=DEFAULT_CHIP_VALUES,
+                          selected_chips=DEFAULT_SELECTED_CHIPS,
                           all_chips=list(DEFAULT_CHIP_VALUES.keys()))
 
 @app.route('/save-chip-values', methods=['POST'])
 def save_chip_values():
+    # Accept the data but don't persist it (for frontend compatibility)
+    # Values will only last for the current page session in browser memory
     try:
         data = request.json
-        session['chip_values'] = data.get('chip_values', {})
-        session['selected_chips'] = data.get('selected_chips', [])
-        session.modified = True
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -48,8 +39,11 @@ def calculate():
     try:
         data = request.json
         friends = data.get('friends', [])
-        chip_values = session.get('chip_values', DEFAULT_CHIP_VALUES)
-        selected_chips = session.get('selected_chips', DEFAULT_SELECTED_CHIPS)
+        
+        # Use chip values from the request payload (sent from frontend)
+        # This allows temporary customization without server-side persistence
+        chip_values = data.get('chip_values', DEFAULT_CHIP_VALUES)
+        selected_chips = data.get('selected_chips', DEFAULT_SELECTED_CHIPS)
         
         # Calculation logic
         original_balances = {}

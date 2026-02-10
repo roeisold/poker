@@ -15,6 +15,9 @@
 <body>
     <div class="container">
         <h2 class="text-center mb-5 fw-light">Chip Values & Selection</h2>
+        <div class="alert alert-info text-center">
+            <small>⚠️ Note: Chip values always reset to defaults when you refresh the page or open a new session.</small>
+        </div>
         <form id="setupForm">
             <div class="row g-4">
                 {% for chip in all_chips %}
@@ -33,7 +36,7 @@
             </div>
             <div class="text-center mt-5">
                 <a href="/" class="btn btn-outline-secondary px-4 me-2">Cancel</a>
-                <button type="submit" class="btn btn-success px-5">Save Settings</button>
+                <button type="submit" class="btn btn-success px-5">Continue with These Values</button>
             </div>
         </form>
     </div>
@@ -50,11 +53,14 @@
             {% endfor %}
             document.querySelectorAll('.chip-toggle:checked').forEach(el => selected_chips.push(el.dataset.chip));
             
+            // Send to server (won't persist, just for compatibility)
             await fetch('/save-chip-values', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ chip_values, selected_chips })
             });
+            
+            // Note: Settings won't persist on Vercel - always reset to defaults
             window.location.href = '/';
         };
     </script>
