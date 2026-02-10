@@ -3,8 +3,8 @@ import os
 
 app = Flask(__name__)
 
-# Static key prevents the app from 'forgetting' chip values on restart
-app.secret_key = 'poker_night_settler_secure_key_123' 
+# --- CRITICAL FIX: Static key ensures your custom chip values persist ---
+app.secret_key = 'poker_settler_permanent_key_2024' 
 
 DEFAULT_CHIP_VALUES = {
     "white": 0.25, "red": 0.5, "green": 1, "blue": 2, "black": 4,
@@ -51,9 +51,7 @@ def calculate():
         chip_values = session.get('chip_values', DEFAULT_CHIP_VALUES)
         selected_chips = session.get('selected_chips', DEFAULT_SELECTED_CHIPS)
         
-        lowest_chip_value = min([chip_values.get(color, float('inf')) 
-                              for color in selected_chips if color in chip_values]) if selected_chips else 1
-        
+        # Calculation logic
         original_balances = {}
         for i, friend in enumerate(friends):
             name, _ = friend
@@ -70,24 +68,23 @@ def calculate():
         
         adjusted_balances = {}
         if abs(total_imbalance) > 0.01:
-            adjustment_per_friend = -total_imbalance / len(friends)
+            adj = -total_imbalance / len(friends)
             for name, balance in friends:
-                adjusted_balances[name] = balance + adjustment_per_friend
+                adjusted_balances[name] = balance + adj
         else:
             for name, balance in friends:
                 adjusted_balances[name] = balance
 
-        # Transaction logic
         creditors = [(n, b) for n, b in adjusted_balances.items() if b > 0]
         debtors = [(n, -b) for n, b in adjusted_balances.items() if b < 0]
         transactions = []
         i, j = 0, 0
         while i < len(debtors) and j < len(creditors):
-            amount = min(debtors[i][1], creditors[j][1])
-            if amount > 0.01:
-                transactions.append({"payer": debtors[i][0], "receiver": creditors[j][0], "amount": round(amount, 2)})
-            debtors[i] = (debtors[i][0], debtors[i][1] - amount)
-            creditors[j] = (creditors[j][0], creditors[j][1] - amount)
+            amt = min(debtors[i][1], creditors[j][1])
+            if amt > 0.01:
+                transactions.append({"payer": debtors[i][0], "receiver": creditors[j][0], "amount": round(amt, 2)})
+            debtors[i] = (debtors[i][0], debtors[i][1] - amt)
+            creditors[j] = (creditors[j][0], creditors[j][1] - amt)
             if debtors[i][1] < 0.01: i += 1
             if creditors[j][1] < 0.01: j += 1
 
@@ -97,16 +94,10 @@ def calculate():
                 "name": name,
                 "buy_in": data.get('buy_ins', {}).get(name, 0),
                 "chip_total": sum(data.get('chip_counts', {}).get(name, {}).get(c, 0) * chip_values.get(c, 0) for c in selected_chips),
-                "profit_loss": adjusted_balances.get(name, 0),
-                "original_profit_loss": original_balances.get(name, 0)
+                "profit_loss": adjusted_balances.get(name, 0)
             })
 
-        return jsonify({
-            "transactions": transactions,
-            "original_imbalance": round(original_imbalance, 2),
-            "hasImbalance": abs(original_imbalance) > 0.01,
-            "friends_summary": friends_summary
-        })
+        return jsonify({"transactions": transactions, "original_imbalance": round(original_imbalance, 2), "hasImbalance": abs(original_imbalance) > 0.01, "friends_summary": friends_summary})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
