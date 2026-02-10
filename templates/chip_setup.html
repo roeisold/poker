@@ -6,193 +6,60 @@
     <title>Chip Setup - Poker Night</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body {
-            background-color: #121212;
-            color: #e0e0e0;
-            padding-top: 30px;
-            padding-bottom: 50px;
+        body { background-color: #121212; padding-top: 30px; }
+        .chip-card { 
+            text-align: center; padding: 15px; border: 1px solid #333; 
+            border-radius: 10px; background-color: #1e1e1e; transition: 0.2s;
         }
-        .card {
-            background-color: #1e1e1e;
-            border: 1px solid #333;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
-        .card-header {
-            background-color: #2c2c2c;
-            border-bottom: 1px solid #333;
-        }
-        .chip-card {
-            text-align: center;
-            padding: 15px;
-            border: 2px solid #333;
-            border-radius: 10px;
-            background-color: #252525;
-            transition: all 0.2s ease;
-            cursor: pointer;
-            height: 100%;
-        }
-        .chip-card:hover {
-            transform: translateY(-2px);
-            border-color: #555;
-        }
-        .chip-card.selected {
-            background-color: #1b2e1e; /* Dark Green Tint */
-            border-color: #28a745;
-            box-shadow: 0 0 10px rgba(40, 167, 69, 0.2);
-        }
-        .chip-image {
-            width: 70px;
-            height: 70px;
-            margin-bottom: 15px;
-            object-fit: contain;
-            filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.5));
-        }
-        .chip-selection {
-            margin-bottom: 10px;
-        }
-        .form-control {
-            background-color: #2c2c2c;
-            border-color: #444;
-            color: #fff;
-            text-align: center;
-        }
-        .form-control:focus {
-            background-color: #333;
-            border-color: #28a745;
-            color: #fff;
-            box-shadow: none;
-        }
-        .btn-primary {
-            background-color: #28a745;
-            border-color: #218838;
-        }
-        .btn-primary:hover {
-            background-color: #218838;
-        }
-        h1, h4 { font-weight: 300; }
+        .chip-card.selected { border-color: #28a745; background-color: #1b2e1e; }
+        .chip-image { width: 60px; height: 60px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1 class="text-center mb-5">Chip Configuration</h1>
-        
-        <div class="row justify-content-center">
-            <div class="col-xl-10">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">Values & Selection</h4>
-                        <small class="text-muted">Tap card to select</small>
-                    </div>
-                    <div class="card-body">
-                        <form id="chipValueForm">
-                            <div class="row g-4">
-                                {% for chip in all_chips %}
-                                <div class="col-6 col-md-4 col-lg-3">
-                                    <div class="chip-card {% if chip in selected_chips %}selected{% endif %}" 
-                                         onclick="toggleChip('{{ chip }}')">
-                                        
-                                        <div class="form-check d-flex justify-content-center mb-2">
-                                            <input type="checkbox" class="form-check-input chip-checkbox" 
-                                                   id="select-{{ chip }}" data-chip="{{ chip }}" 
-                                                   {% if chip in selected_chips %}checked{% endif %}
-                                                   onclick="event.stopPropagation()">
-                                        </div>
-                                        
-                                        <img src="/static/{{ chip }}-chip.jpg" alt="{{ chip }}" class="chip-image">
-                                        
-                                        <h6 class="text-capitalize mb-2">{{ chip.replace('-', ' ') }}</h6>
-                                        
-                                        <div class="input-group input-group-sm" onclick="event.stopPropagation()">
-                                            <span class="input-group-text bg-dark border-secondary text-secondary">$</span>
-                                            <input type="number" class="form-control" id="{{ chip }}-value" 
-                                                   value="{{ chip_values[chip] }}" min="0.01" step="0.01" required>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                            
-                            <hr class="my-4 border-secondary">
-                            
-                            <div class="d-flex justify-content-center gap-3">
-                                <a href="/" class="btn btn-outline-secondary px-4">Cancel</a>
-                                <button type="submit" class="btn btn-primary px-5">Save Configuration</button>
-                            </div>
-                        </form>
+        <form id="chipValueForm">
+            <div class="row g-3">
+                {% for chip in all_chips %}
+                <div class="col-6 col-md-3">
+                    <div class="chip-card {% if chip in selected_chips %}selected{% endif %}">
+                        <input type="checkbox" class="form-check-input chip-checkbox" 
+                               id="select-{{ chip }}" data-chip="{{ chip }}" 
+                               {% if chip in selected_chips %}checked{% endif %}>
+                        <label class="d-block mt-2 small" for="select-{{ chip }}">Use {{ chip.title() }}</label>
+                        <img src="/static/{{ chip }}-chip.jpg" class="chip-image mt-2">
+                        <input type="number" class="form-control form-control-sm text-center" 
+                               id="{{ chip }}-value" value="{{ chip_values[chip] }}" step="0.01">
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        function toggleChip(chipName) {
-            const checkbox = document.getElementById('select-' + chipName);
-            checkbox.checked = !checkbox.checked;
-            updateCardStyle(checkbox);
-        }
-
-        function updateCardStyle(checkbox) {
-            const card = checkbox.closest('.chip-card');
-            if (checkbox.checked) {
-                card.classList.add('selected');
-            } else {
-                card.classList.remove('selected');
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize event listeners for checkboxes
-            const checkboxes = document.querySelectorAll('.chip-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    updateCardStyle(this);
-                });
-            });
-            
-            // Handle form submission
-            document.getElementById('chipValueForm').addEventListener('submit', async function(e) {
-                e.preventDefault();
-                
-                const chipValues = {};
-                const selectedChips = [];
-                
-                // Collect data
-                {% for chip in all_chips %}
-                chipValues["{{ chip }}"] = parseFloat(document.getElementById('{{ chip }}-value').value);
                 {% endfor %}
-                
-                checkboxes.forEach(checkbox => {
-                    if (checkbox.checked) {
-                        selectedChips.push(checkbox.dataset.chip);
-                    }
-                });
-                
-                if (selectedChips.length === 0) {
-                    alert('Please select at least one chip color');
-                    return;
-                }
-                
-                try {
-                    const response = await fetch('/save-chip-values', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            chip_values: chipValues,
-                            selected_chips: selectedChips
-                        }),
-                    });
-                    
-                    if (response.ok) {
-                        window.location.href = '/';
-                    } else {
-                        const data = await response.json();
-                        alert(`Error: ${data.error}`);
-                    }
-                } catch (error) {
-                    alert('Network error. Please try again.');
-                }
+            </div>
+            <div class="text-center mt-5">
+                <a href="/" class="btn btn-outline-secondary me-2">Cancel</a>
+                <button type="submit" class="btn btn-success px-5">Save Settings</button>
+            </div>
+        </form>
+    </div>
+    <script>
+        document.querySelectorAll('.chip-checkbox').forEach(cb => {
+            cb.addEventListener('change', function() {
+                this.closest('.chip-card').classList.toggle('selected', this.checked);
             });
+        });
+        document.getElementById('chipValueForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const chip_values = {};
+            const selected_chips = [];
+            {% for chip in all_chips %}
+            chip_values["{{ chip }}"] = parseFloat(document.getElementById('{{ chip }}-value').value);
+            {% endfor %}
+            document.querySelectorAll('.chip-checkbox:checked').forEach(cb => selected_chips.push(cb.dataset.chip));
+            await fetch('/save-chip-values', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ chip_values, selected_chips })
+            });
+            window.location.href = '/';
         });
     </script>
 </body>
