@@ -16,6 +16,13 @@
         .chip-img-s { width: 22px; height: 22px; margin-right: 8px; }
         .chip-val-input { width: 55px; background: transparent; border: none; color: #fff; text-align: center; font-weight: bold; }
         .chip-val-input:focus { outline: none; border-bottom: 1px solid #28a745; }
+        .player-table { background: #1e1e1e; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
+        .player-table th { background: #252525; border-bottom: 2px solid #28a745; padding: 12px; font-weight: 600; }
+        .player-table td { padding: 12px; border-bottom: 1px solid #333; }
+        .player-table tr:last-child td { border-bottom: none; }
+        .profit-positive { color: #28a745; font-weight: bold; }
+        .profit-negative { color: #dc3545; font-weight: bold; }
+        .profit-zero { color: #6c757d; }
     </style>
 </head>
 <body>
@@ -32,14 +39,7 @@
         <div class="container">
             <h1 class="display-6 fw-bold text-white">Poker Payout Calculator</h1>
             
-            <div class="chip-display">
-                {% for chip in selected_chips %}
-                <div class="chip-badge">
-                    <span class="dot" style="background-color: {{ 'white' if chip == 'white' else chip }};"></span>
-                    {{ chip|title }}: <strong class="ms-1 text-success">${{ "%.2f"|format(chip_values[chip]) }}</strong>
-                </div>
-                {% endfor %}
-            </div>
+            <div class="chip-display" id="chipDisplay"></div>
             
             <div class="mt-3">
                 <a href="/chip-setup" class="btn btn-sm btn-outline-light rounded-pill">⚙️ Setup Chip Values</a>
@@ -61,8 +61,29 @@
 
                 <div id="resultsCard" class="card bg-dark border-secondary mt-5" style="display:none">
                     <div class="card-body p-4">
-                        <h4 class="text-success mb-3">Settlement Plan</h4>
+                        <h4 class="text-success mb-4">Settlement Plan</h4>
+                        
+                        <!-- Player Summary Table -->
+                        <h5 class="mb-3">Player Summary</h5>
+                        <div class="table-responsive mb-4">
+                            <table class="table table-dark table-hover player-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Player</th>
+                                        <th class="text-end">Buy In</th>
+                                        <th class="text-end">Chips Value</th>
+                                        <th class="text-end">Profit/Loss</th>
+                                        <th class="text-end">After Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="playersSummaryTable"></tbody>
+                            </table>
+                        </div>
+
+                        <!-- Transactions -->
+                        <h5 class="mb-3 mt-4">Transactions</h5>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
+                        
                         <button onclick="window.location.reload()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
                     </div>
                 </div>
@@ -72,15 +93,27 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Server provides defaults, these are always loaded fresh on page load
-        const chipValues = {{ chip_values|tojson }};
-        const selectedChips = {{ selected_chips|tojson }};
+        // Load from localStorage or use defaults
+        let chipValues = JSON.parse(localStorage.getItem('chipValues')) || {{ chip_values|tojson }};
+        let selectedChips = JSON.parse(localStorage.getItem('selectedChips')) || {{ selected_chips|tojson }};
+        
+        // Update chip display in header
+        function updateChipDisplay() {
+            const chipDisplay = document.getElementById('chipDisplay');
+            chipDisplay.innerHTML = selectedChips.map(chip => `
+                <div class="chip-badge">
+                    <span class="dot" style="background-color: ${chip === 'white' ? 'white' : chip};"></span>
+                    ${chip.charAt(0).toUpperCase() + chip.slice(1)}: <strong class="ms-1 text-success">$${chipValues[chip].toFixed(2)}</strong>
+                </div>
+            `).join('');
+        }
+        
+        updateChipDisplay();
         
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('playerForm');
             const friendsList = document.getElementById('friendsList');
             
-            // Explicitly reset the form HTML on every fresh load
             form.reset();
             friendsList.innerHTML = '';
 
@@ -110,7 +143,6 @@
                 friendsList.appendChild(div);
             };
 
-            // Start with 2 players
             createPlayer(); createPlayer();
             document.getElementById('addPlayerBtn').onclick = createPlayer;
 
@@ -142,6 +174,24 @@
                 });
                 
                 const data = await res.json();
+                
+                // Populate player summary table
+                const playersTable = document.getElementById('playersSummaryTable');
+                playersTable.innerHTML = data.players_summary.map(p => {
+                    const profitClass = p.profit_loss_original > 0 ? 'profit-positive' : p.profit_loss_original < 0 ? 'profit-negative' : 'profit-zero';
+                    const balancedClass = p.profit_loss_balanced > 0 ? 'profit-positive' : p.profit_loss_balanced < 0 ? 'profit-negative' : 'profit-zero';
+                    return `
+                        <tr>
+                            <td><strong>${p.name}</strong></td>
+                            <td class="text-end">$${p.buy_in.toFixed(2)}</td>
+                            <td class="text-end">$${p.chip_total.toFixed(2)}</td>
+                            <td class="text-end ${profitClass}">${p.profit_loss_original >= 0 ? '+' : ''}$${p.profit_loss_original.toFixed(2)}</td>
+                            <td class="text-end ${balancedClass}">${p.profit_loss_balanced >= 0 ? '+' : ''}$${p.profit_loss_balanced.toFixed(2)}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                // Populate transactions
                 const container = document.getElementById('transactionsList');
                 container.innerHTML = data.transactions.map(t => `
                     <div class="list-group-item bg-transparent border-secondary d-flex justify-content-between align-items-center py-3">

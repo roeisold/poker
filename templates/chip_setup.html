@@ -15,52 +15,82 @@
 <body>
     <div class="container">
         <h2 class="text-center mb-5 fw-light">Chip Values & Selection</h2>
-        <div class="alert alert-info text-center">
-            <small>⚠️ Note: Chip values always reset to defaults when you refresh the page or open a new session.</small>
-        </div>
         <form id="setupForm">
-            <div class="row g-4">
-                {% for chip in all_chips %}
-                <div class="col-6 col-md-3">
-                    <div class="chip-card {% if chip in selected_chips %}active{% endif %}">
-                        <input type="checkbox" class="form-check-input chip-toggle" data-chip="{{ chip }}" {% if chip in selected_chips %}checked{% endif %}>
-                        <div class="mt-2"><img src="/static/{{ chip }}-chip.jpg" class="chip-img-l"></div>
-                        <div class="small text-muted text-uppercase mb-2">{{ chip }}</div>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-dark border-secondary">$</span>
-                            <input type="number" class="form-control bg-dark text-white border-secondary text-center" id="val-{{ chip }}" value="{{ chip_values[chip] }}" step="0.01">
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
+            <div class="row g-4" id="chipsContainer"></div>
             <div class="text-center mt-5">
                 <a href="/" class="btn btn-outline-secondary px-4 me-2">Cancel</a>
-                <button type="submit" class="btn btn-success px-5">Continue with These Values</button>
+                <button type="button" id="resetBtn" class="btn btn-outline-warning px-4 me-2">Reset to Defaults</button>
+                <button type="submit" class="btn btn-success px-5">Save Settings</button>
             </div>
         </form>
     </div>
     <script>
+        const DEFAULT_CHIP_VALUES = {{ chip_values|tojson }};
+        const DEFAULT_SELECTED_CHIPS = {{ selected_chips|tojson }};
+        const ALL_CHIPS = {{ all_chips|tojson }};
+        
+        // Load from localStorage or use defaults
+        let chipValues = JSON.parse(localStorage.getItem('chipValues')) || DEFAULT_CHIP_VALUES;
+        let selectedChips = JSON.parse(localStorage.getItem('selectedChips')) || DEFAULT_SELECTED_CHIPS;
+        
+        // Render chips
+        const container = document.getElementById('chipsContainer');
+        container.innerHTML = ALL_CHIPS.map(chip => `
+            <div class="col-6 col-md-3">
+                <div class="chip-card ${selectedChips.includes(chip) ? 'active' : ''}" id="card-${chip}">
+                    <input type="checkbox" class="form-check-input chip-toggle" data-chip="${chip}" ${selectedChips.includes(chip) ? 'checked' : ''}>
+                    <div class="mt-2"><img src="/static/${chip}-chip.jpg" class="chip-img-l"></div>
+                    <div class="small text-muted text-uppercase mb-2">${chip}</div>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-dark border-secondary">$</span>
+                        <input type="number" class="form-control bg-dark text-white border-secondary text-center" id="val-${chip}" value="${chipValues[chip]}" step="0.01">
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        // Toggle active state
         document.querySelectorAll('.chip-toggle').forEach(el => {
-            el.onchange = (e) => e.target.closest('.chip-card').classList.toggle('active', e.target.checked);
+            el.onchange = (e) => {
+                e.target.closest('.chip-card').classList.toggle('active', e.target.checked);
+            };
         });
 
+        // Reset button
+        document.getElementById('resetBtn').onclick = () => {
+            if (confirm('Reset all chip values to defaults? This cannot be undone.')) {
+                localStorage.removeItem('chipValues');
+                localStorage.removeItem('selectedChips');
+                window.location.reload();
+            }
+        };
+
+        // Save to localStorage
         document.getElementById('setupForm').onsubmit = async (e) => {
             e.preventDefault();
-            const chip_values = {}; const selected_chips = [];
-            {% for chip in all_chips %}
-            chip_values["{{ chip }}"] = parseFloat(document.getElementById('val-{{ chip }}').value);
-            {% endfor %}
-            document.querySelectorAll('.chip-toggle:checked').forEach(el => selected_chips.push(el.dataset.chip));
             
-            // Send to server (won't persist, just for compatibility)
+            const newChipValues = {};
+            const newSelectedChips = [];
+            
+            ALL_CHIPS.forEach(chip => {
+                newChipValues[chip] = parseFloat(document.getElementById(`val-${chip}`).value);
+            });
+            
+            document.querySelectorAll('.chip-toggle:checked').forEach(el => {
+                newSelectedChips.push(el.dataset.chip);
+            });
+            
+            // Save to localStorage
+            localStorage.setItem('chipValues', JSON.stringify(newChipValues));
+            localStorage.setItem('selectedChips', JSON.stringify(newSelectedChips));
+            
+            // Also send to server (optional, for compatibility)
             await fetch('/save-chip-values', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ chip_values, selected_chips })
+                body: JSON.stringify({ chip_values: newChipValues, selected_chips: newSelectedChips })
             });
             
-            // Note: Settings won't persist on Vercel - always reset to defaults
             window.location.href = '/';
         };
     </script>
