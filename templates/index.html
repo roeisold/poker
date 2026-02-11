@@ -23,6 +23,7 @@
         .profit-positive { color: #28a745; font-weight: bold; }
         .profit-negative { color: #dc3545; font-weight: bold; }
         .profit-zero { color: #6c757d; }
+        .remove-player-btn { position: absolute; top: 10px; right: 10px; }
     </style>
 </head>
 <body>
@@ -84,7 +85,7 @@
                         <h5 class="mb-3 mt-4">Transactions</h5>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
                         
-                        <button onclick="window.location.reload()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
+                        <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
                     </div>
                 </div>
             </div>
@@ -110,6 +111,44 @@
         
         updateChipDisplay();
         
+        // Save player data to localStorage
+        function savePlayerData() {
+            const players = [];
+            document.querySelectorAll('.friend-entry').forEach(entry => {
+                const name = entry.querySelector('.friend-name').value.trim();
+                const buyIn = entry.querySelector('.buy-in').value;
+                const chipCounts = {};
+                
+                selectedChips.forEach(chip => {
+                    const input = entry.querySelector(`.${chip}-count`);
+                    if (input) {
+                        chipCounts[chip] = input.value;
+                    }
+                });
+                
+                players.push({ name, buyIn, chipCounts });
+            });
+            
+            localStorage.setItem('playerData', JSON.stringify(players));
+        }
+        
+        // Load player data from localStorage
+        function loadPlayerData() {
+            const savedData = localStorage.getItem('playerData');
+            if (savedData) {
+                return JSON.parse(savedData);
+            }
+            return null;
+        }
+        
+        // Clear all data
+        function clearAllData() {
+            if (confirm('This will clear all player data and results. Continue?')) {
+                localStorage.removeItem('playerData');
+                window.location.reload();
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('playerForm');
             const friendsList = document.getElementById('friendsList');
@@ -117,34 +156,56 @@
             form.reset();
             friendsList.innerHTML = '';
 
-            const createPlayer = () => {
+            const createPlayer = (playerData = null) => {
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
                 let html = `
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-player-btn">×</button>
                     <div class="row g-3 mb-3">
                         <div class="col-7">
-                            <input type="text" class="form-control friend-name" placeholder="Name" required autocomplete="off">
+                            <input type="text" class="form-control friend-name" placeholder="Name" required autocomplete="off" value="${playerData?.name || ''}">
                         </div>
                         <div class="col-5">
-                            <input type="number" class="form-control buy-in" placeholder="Buy In $" step="0.5" autocomplete="off">
+                            <input type="number" class="form-control buy-in" placeholder="Buy In $" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}">
                         </div>
                     </div>
                     <div class="d-flex flex-wrap justify-content-start">`;
                 
                 selectedChips.forEach(chip => {
+                    const chipCount = playerData?.chipCounts?.[chip] || '0';
                     html += `
                         <div class="chip-input-group">
                             <img src="/static/${chip}-chip.jpg" class="chip-img-s">
-                            <input type="number" class="chip-val-input ${chip}-count" placeholder="0" min="0" value="0" autocomplete="off">
+                            <input type="number" class="chip-val-input ${chip}-count" placeholder="0" min="0" value="${chipCount}" autocomplete="off">
                         </div>`;
                 });
                 
                 div.innerHTML = html + `</div>`;
                 friendsList.appendChild(div);
+                
+                // Add remove button handler
+                div.querySelector('.remove-player-btn').onclick = () => {
+                    div.remove();
+                    savePlayerData();
+                };
+                
+                // Add auto-save on input change
+                div.querySelectorAll('input').forEach(input => {
+                    input.addEventListener('input', savePlayerData);
+                    input.addEventListener('change', savePlayerData);
+                });
             };
 
-            createPlayer(); createPlayer();
-            document.getElementById('addPlayerBtn').onclick = createPlayer;
+            // Load saved players or create default ones
+            const savedPlayers = loadPlayerData();
+            if (savedPlayers && savedPlayers.length > 0) {
+                savedPlayers.forEach(playerData => createPlayer(playerData));
+            } else {
+                createPlayer();
+                createPlayer();
+            }
+            
+            document.getElementById('addPlayerBtn').onclick = () => createPlayer();
 
             form.onsubmit = async (e) => {
                 e.preventDefault();
@@ -160,6 +221,9 @@
                     });
                     friends.push([name, 0]);
                 });
+
+                // Save before calculating
+                savePlayerData();
 
                 const res = await fetch('/calculate', {
                     method: 'POST',
