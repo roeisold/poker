@@ -27,11 +27,7 @@ def chip_setup():
 @app.route('/save-chip-values', methods=['POST'])
 def save_chip_values():
     # Frontend handles persistence via localStorage
-    try:
-        data = request.json
-        return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+    return jsonify({"success": True})
 
 @app.route('/calculate', methods=['POST'])
 def calculate():
