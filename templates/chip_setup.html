@@ -25,6 +25,19 @@
         </form>
     </div>
     <script>
+        // Helper to escape HTML and prevent XSS
+        function escapeHTML(str) {
+            if (!str) return '';
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
         const DEFAULT_CHIP_VALUES = {{ chip_values|tojson }};
         const DEFAULT_SELECTED_CHIPS = {{ selected_chips|tojson }};
         const ALL_CHIPS = {{ all_chips|tojson }};
@@ -35,19 +48,21 @@
         
         // Render chips
         const container = document.getElementById('chipsContainer');
-        container.innerHTML = ALL_CHIPS.map(chip => `
+        container.innerHTML = ALL_CHIPS.map(chip => {
+            const escapedChip = escapeHTML(chip);
+            return `
             <div class="col-6 col-md-3">
-                <div class="chip-card ${selectedChips.includes(chip) ? 'active' : ''}" id="card-${chip}">
-                    <input type="checkbox" class="form-check-input chip-toggle" data-chip="${chip}" ${selectedChips.includes(chip) ? 'checked' : ''}>
-                    <div class="mt-2"><img src="/static/${chip}-chip.jpg" class="chip-img-l"></div>
-                    <div class="small text-muted text-uppercase mb-2">${chip}</div>
+                <div class="chip-card ${selectedChips.includes(chip) ? 'active' : ''}" id="card-${escapedChip}">
+                    <input type="checkbox" class="form-check-input chip-toggle" data-chip="${escapedChip}" ${selectedChips.includes(chip) ? 'checked' : ''}>
+                    <div class="mt-2"><img src="/static/${escapedChip}-chip.jpg" class="chip-img-l"></div>
+                    <div class="small text-muted text-uppercase mb-2">${escapedChip}</div>
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-dark border-secondary">$</span>
-                        <input type="number" class="form-control bg-dark text-white border-secondary text-center" id="val-${chip}" value="${chipValues[chip]}" step="0.01">
+                        <input type="number" class="form-control bg-dark text-white border-secondary text-center" id="val-${escapedChip}" value="${chipValues[chip]}" step="0.01">
                     </div>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
         
         // Toggle active state
         document.querySelectorAll('.chip-toggle').forEach(el => {
