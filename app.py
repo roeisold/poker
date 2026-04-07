@@ -1,3 +1,5 @@
+import gzip
+import io
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
@@ -30,7 +32,15 @@ def save_chip_values():
     return jsonify({"success": True})
 
 @app.after_request
-def add_security_headers(response):
+def optimize_and_secure(response):
+    """
+    Sentinel 🛡️ & Bolt ⚡: Optimize delivery and secure headers.
+    """
+    # 1. Add Browser Caching for static assets (Flask 2.3+ compatible)
+    if request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'public, max-age=31536000'
+
+    # 2. Add Security Headers (Sentinel)
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['Content-Security-Policy'] = (
@@ -39,6 +49,45 @@ def add_security_headers(response):
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "img-src 'self' data:;"
     )
+
+    # 3. Add Gzip Compression (Bolt)
+    accept_encoding = request.headers.get('Accept-Encoding', '')
+    if 'gzip' not in accept_encoding.lower():
+        return response
+
+    # Skip if already encoded or not a successful response
+    if (response.status_code < 200 or
+        response.status_code >= 300 or
+        'Content-Encoding' in response.headers):
+        return response
+
+    # Get the response content
+    if response.direct_passthrough:
+        # For direct_passthrough (like static files), we need to read from the response.response iterator
+        content = b"".join(response.response)
+    else:
+        content = response.get_data()
+
+    # Skip compression for small payloads
+    if len(content) < 500:
+        return response
+
+    # Compress the content
+    gzip_buffer = io.BytesIO()
+    with gzip.GzipFile(mode='wb', fileobj=gzip_buffer) as gzip_file:
+        gzip_file.write(content)
+
+    compressed_content = gzip_buffer.getvalue()
+
+    # Update response with compressed data and necessary headers
+    response.direct_passthrough = False
+    response.set_data(compressed_content)
+    response.headers['Content-Encoding'] = 'gzip'
+    response.headers['Content-Length'] = str(len(compressed_content))
+
+    # Critical: Add Vary header to ensure correct caching by proxies/CDNs
+    response.headers['Vary'] = 'Accept-Encoding'
+
     return response
 
 @app.route('/calculate', methods=['POST'])
