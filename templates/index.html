@@ -23,7 +23,7 @@
         .profit-positive { color: #28a745; font-weight: bold; }
         .profit-negative { color: #dc3545; font-weight: bold; }
         .profit-zero { color: #6c757d; }
-        .remove-player-btn { position: absolute; top: 10px; right: 10px; }
+        .remove-player-btn { height: 38px; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
@@ -176,13 +176,15 @@
                 div.className = 'friend-entry';
                 const escapedName = escapeHTML(playerData?.name || '');
                 let html = `
-                    <button type="button" class="btn btn-sm btn-outline-danger remove-player-btn" aria-label="Remove player">×</button>
-                    <div class="row g-3 mb-3">
-                        <div class="col-7">
+                    <div class="row g-3 mb-3 align-items-center">
+                        <div class="col-6">
                             <input type="text" class="form-control friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}">
                         </div>
-                        <div class="col-5">
+                        <div class="col-4">
                             <input type="number" class="form-control buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}">
+                        </div>
+                        <div class="col-2 text-end">
+                            <button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button>
                         </div>
                     </div>
                     <div class="d-flex flex-wrap justify-content-start">`;
@@ -233,10 +235,18 @@
                 submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Calculating...';
 
                 const friends = []; const buy_ins = {}; const chip_counts = {};
+                const namesSet = new Set();
+                let hasDuplicate = false;
 
                 document.querySelectorAll('.friend-entry').forEach(entry => {
                     const name = entry.querySelector('.friend-name').value.trim();
                     if(!name) return;
+
+                    if (namesSet.has(name.toLowerCase())) {
+                        hasDuplicate = true;
+                    }
+                    namesSet.add(name.toLowerCase());
+
                     buy_ins[name] = parseFloat(entry.querySelector('.buy-in').value) || 0;
                     chip_counts[name] = {};
                     selectedChips.forEach(c => {
@@ -244,6 +254,13 @@
                     });
                     friends.push([name, 0]);
                 });
+
+                if (hasDuplicate) {
+                    alert('Duplicate player names are not allowed. Please ensure each player has a unique name.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnContent;
+                    return;
+                }
 
                 // Save before calculating
                 savePlayerData();
