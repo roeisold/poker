@@ -32,15 +32,25 @@ def save_chip_values():
     return jsonify({"success": True})
 
 @app.after_request
-def optimize_delivery(response):
+def optimize_and_secure(response):
     """
-    Bolt ⚡: Optimize delivery by enabling Gzip compression and browser caching.
+    Sentinel 🛡️ & Bolt ⚡: Optimize delivery and secure headers.
     """
     # 1. Add Browser Caching for static assets (Flask 2.3+ compatible)
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000'
 
-    # 2. Add Gzip Compression
+    # 2. Add Security Headers (Sentinel)
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "img-src 'self' data:;"
+    )
+
+    # 3. Add Gzip Compression (Bolt)
     accept_encoding = request.headers.get('Accept-Encoding', '')
     if 'gzip' not in accept_encoding.lower():
         return response
@@ -73,7 +83,7 @@ def optimize_delivery(response):
     response.direct_passthrough = False
     response.set_data(compressed_content)
     response.headers['Content-Encoding'] = 'gzip'
-    response.headers['Content-Length'] = len(compressed_content)
+    response.headers['Content-Length'] = str(len(compressed_content))
 
     # Critical: Add Vary header to ensure correct caching by proxies/CDNs
     response.headers['Vary'] = 'Accept-Encoding'
@@ -85,6 +95,8 @@ def calculate():
     try:
         data = request.json
         friends = data.get('friends', [])
+        if not friends:
+            return jsonify({"error": "No players provided"}), 400
 
         # Get chip values from request (sent from frontend localStorage)
         chip_values = data.get('chip_values', DEFAULT_CHIP_VALUES)
@@ -155,8 +167,8 @@ def calculate():
             "total_imbalance": round(total_imbalance, 2),
             "has_imbalance": abs(total_imbalance) > 0.01
         })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+    except Exception:
+        return jsonify({"error": "An error occurred during calculation"}), 400
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
