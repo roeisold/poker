@@ -39,9 +39,9 @@
     <div class="header-section text-center">
         <div class="container">
             <h1 class="display-6 fw-bold text-white">Poker Payout Calculator</h1>
-            
+
             <div class="chip-display" id="chipDisplay"></div>
-            
+
             <div class="mt-3">
                 <a href="/chip-setup" class="btn btn-sm btn-outline-light rounded-pill">⚙️ Setup Chip Values</a>
             </div>
@@ -53,7 +53,7 @@
             <div class="col-lg-8">
                 <form id="playerForm" autocomplete="off">
                     <div id="friendsList"></div>
-                    
+
                     <div class="d-flex justify-content-between mt-4">
                         <button type="button" class="btn btn-outline-secondary" id="addPlayerBtn">+ Add Player</button>
                         <button type="submit" class="btn btn-success px-4 fw-bold">Calculate Debts</button>
@@ -63,7 +63,7 @@
                 <div id="resultsCard" class="card bg-dark border-secondary mt-5" style="display:none">
                     <div class="card-body p-4">
                         <h4 class="text-success mb-4">Settlement Plan</h4>
-                        
+
                         <!-- Player Summary Table -->
                         <h5 class="mb-3">Player Summary</h5>
                         <div class="table-responsive mb-4">
@@ -84,7 +84,7 @@
                         <!-- Transactions -->
                         <h5 class="mb-3 mt-4">Transactions</h5>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
-                        
+
                         <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
                     </div>
                 </div>
@@ -94,23 +94,38 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Helper to escape HTML and prevent XSS
+        function escapeHTML(str) {
+            if (!str) return '';
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
         // Load from localStorage or use defaults
         let chipValues = JSON.parse(localStorage.getItem('chipValues')) || {{ chip_values|tojson }};
         let selectedChips = JSON.parse(localStorage.getItem('selectedChips')) || {{ selected_chips|tojson }};
-        
+
         // Update chip display in header
         function updateChipDisplay() {
             const chipDisplay = document.getElementById('chipDisplay');
-            chipDisplay.innerHTML = selectedChips.map(chip => `
+            chipDisplay.innerHTML = selectedChips.map(chip => {
+                const escapedChip = escapeHTML(chip);
+                return `
                 <div class="chip-badge">
-                    <span class="dot" style="background-color: ${chip === 'white' ? 'white' : chip};"></span>
-                    ${chip.charAt(0).toUpperCase() + chip.slice(1)}: <strong class="ms-1 text-success">${chipValues[chip].toFixed(2)}</strong>
+                    <span class="dot" style="background-color: ${escapedChip === 'white' ? 'white' : escapedChip};"></span>
+                    ${escapedChip.charAt(0).toUpperCase() + escapedChip.slice(1)}: <strong class="ms-1 text-success">${chipValues[chip].toFixed(2)}</strong>
                 </div>
-            `).join('');
+            `}).join('');
         }
-        
+
         updateChipDisplay();
-        
+
         // Save player data to localStorage
         function savePlayerData() {
             const players = [];
@@ -118,20 +133,20 @@
                 const name = entry.querySelector('.friend-name').value.trim();
                 const buyIn = entry.querySelector('.buy-in').value;
                 const chipCounts = {};
-                
+
                 selectedChips.forEach(chip => {
                     const input = entry.querySelector(`.${chip}-count`);
                     if (input) {
                         chipCounts[chip] = input.value;
                     }
                 });
-                
+
                 players.push({ name, buyIn, chipCounts });
             });
-            
+
             localStorage.setItem('playerData', JSON.stringify(players));
         }
-        
+
         // Load player data from localStorage
         function loadPlayerData() {
             const savedData = localStorage.getItem('playerData');
@@ -140,7 +155,7 @@
             }
             return null;
         }
-        
+
         // Clear all data
         function clearAllData() {
             if (confirm('This will clear all player data and results. Continue?')) {
@@ -148,47 +163,49 @@
                 window.location.reload();
             }
         }
-        
+
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('playerForm');
             const friendsList = document.getElementById('friendsList');
-            
+
             form.reset();
             friendsList.innerHTML = '';
 
             const createPlayer = (playerData = null) => {
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
+                const escapedName = escapeHTML(playerData?.name || '');
                 let html = `
                     <button type="button" class="btn btn-sm btn-outline-danger remove-player-btn">×</button>
                     <div class="row g-3 mb-3">
                         <div class="col-7">
-                            <input type="text" class="form-control friend-name" placeholder="Name" required autocomplete="off" value="${playerData?.name || ''}">
+                            <input type="text" class="form-control friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}">
                         </div>
                         <div class="col-5">
                             <input type="number" class="form-control buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}">
                         </div>
                     </div>
                     <div class="d-flex flex-wrap justify-content-start">`;
-                
+
                 selectedChips.forEach(chip => {
                     const chipCount = playerData?.chipCounts?.[chip] || '0';
+                    const escapedChip = escapeHTML(chip);
                     html += `
                         <div class="chip-input-group">
-                            <img src="/static/${chip}-chip.jpg" class="chip-img-s">
-                            <input type="number" class="chip-val-input ${chip}-count" placeholder="0" min="0" value="${chipCount}" autocomplete="off">
+                            <img src="/static/${escapedChip}-chip.jpg" class="chip-img-s">
+                            <input type="number" class="chip-val-input ${escapedChip}-count" placeholder="0" min="0" value="${chipCount}" autocomplete="off">
                         </div>`;
                 });
-                
+
                 div.innerHTML = html + `</div>`;
                 friendsList.appendChild(div);
-                
+
                 // Add remove button handler
                 div.querySelector('.remove-player-btn').onclick = () => {
                     div.remove();
                     savePlayerData();
                 };
-                
+
                 // Add auto-save on input change
                 div.querySelectorAll('input').forEach(input => {
                     input.addEventListener('input', savePlayerData);
@@ -204,13 +221,13 @@
                 createPlayer();
                 createPlayer();
             }
-            
+
             document.getElementById('addPlayerBtn').onclick = () => createPlayer();
 
             form.onsubmit = async (e) => {
                 e.preventDefault();
                 const friends = []; const buy_ins = {}; const chip_counts = {};
-                
+
                 document.querySelectorAll('.friend-entry').forEach(entry => {
                     const name = entry.querySelector('.friend-name').value.trim();
                     if(!name) return;
@@ -228,17 +245,17 @@
                 const res = await fetch('/calculate', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ 
-                        friends, 
-                        buy_ins, 
+                    body: JSON.stringify({
+                        friends,
+                        buy_ins,
                         chip_counts,
                         chip_values: chipValues,
                         selected_chips: selectedChips
                     })
                 });
-                
+
                 const data = await res.json();
-                
+
                 // Populate player summary table
                 const playersTable = document.getElementById('playersSummaryTable');
                 let summaryHtml = data.players_summary.map(p => {
@@ -246,7 +263,7 @@
                     const balancedClass = p.profit_loss_balanced > 0 ? 'profit-positive' : p.profit_loss_balanced < 0 ? 'profit-negative' : 'profit-zero';
                     return `
                         <tr>
-                            <td><strong>${p.name}</strong></td>
+                            <td><strong>${escapeHTML(p.name)}</strong></td>
                             <td class="text-end">${p.buy_in.toFixed(2)}</td>
                             <td class="text-end">${p.chip_total.toFixed(2)}</td>
                             <td class="text-end ${profitClass}">${p.profit_loss_original >= 0 ? '+' : ''}${p.profit_loss_original.toFixed(2)}</td>
@@ -264,16 +281,16 @@
                     `;
                 }
                 playersTable.innerHTML = summaryHtml;
-                
+
                 // Populate transactions
                 const container = document.getElementById('transactionsList');
                 container.innerHTML = data.transactions.map(t => `
                     <div class="list-group-item bg-transparent border-secondary d-flex justify-content-between align-items-center py-3">
-                        <span><b class="text-danger">${t.payer}</b> pays <b class="text-success">${t.receiver}</b></span>
+                        <span><b class="text-danger">${escapeHTML(t.payer)}</b> pays <b class="text-success">${escapeHTML(t.receiver)}</b></span>
                         <span class="fs-5 fw-bold text-white">${t.amount.toFixed(2)}</span>
                     </div>
                 `).join('') || '<div class="text-center text-muted">Everyone is even!</div>';
-                
+
                 document.getElementById('resultsCard').style.display = 'block';
                 window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
             };
