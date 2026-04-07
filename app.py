@@ -12,14 +12,14 @@ DEFAULT_SELECTED_CHIPS = ["white", "red", "green", "blue", "black"]
 @app.route('/', methods=['GET'])
 def index():
     # Defaults will be overridden by localStorage on the frontend
-    return render_template('index.html', 
+    return render_template('index.html',
                           chip_values=DEFAULT_CHIP_VALUES,
                           selected_chips=DEFAULT_SELECTED_CHIPS)
 
 @app.route('/chip-setup', methods=['GET'])
 def chip_setup():
     # Defaults will be overridden by localStorage on the frontend
-    return render_template('chip_setup.html', 
+    return render_template('chip_setup.html',
                           chip_values=DEFAULT_CHIP_VALUES,
                           selected_chips=DEFAULT_SELECTED_CHIPS,
                           all_chips=list(DEFAULT_CHIP_VALUES.keys()))
@@ -29,36 +29,50 @@ def save_chip_values():
     # Frontend handles persistence via localStorage
     return jsonify({"success": True})
 
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "img-src 'self' data:;"
+    )
+    return response
+
 @app.route('/calculate', methods=['POST'])
 def calculate():
     try:
         data = request.json
         friends = data.get('friends', [])
-        
+        if not friends:
+            return jsonify({"error": "No players provided"}), 400
+
         # Get chip values from request (sent from frontend localStorage)
         chip_values = data.get('chip_values', DEFAULT_CHIP_VALUES)
         selected_chips = data.get('selected_chips', DEFAULT_SELECTED_CHIPS)
-        
+
         # Calculation logic
         original_balances = {}
         chip_totals = {}
         buy_ins_dict = {}
-        
+
         for i, friend in enumerate(friends):
             name, _ = friend
             buy_in = data.get('buy_ins', {}).get(name, 0)
             chip_counts = data.get('chip_counts', {}).get(name, {})
-            chip_total = sum(chip_counts.get(color, 0) * chip_values.get(color, 0) 
+            chip_total = sum(chip_counts.get(color, 0) * chip_values.get(color, 0)
                           for color in selected_chips if color in chip_values)
-            
+
             actual_balance = chip_total - buy_in
             original_balances[name] = actual_balance
             chip_totals[name] = chip_total
             buy_ins_dict[name] = buy_in
             friends[i] = (name, actual_balance)
-        
+
         total_imbalance = sum(amt for _, amt in friends)
-        
+
         # Calculate adjusted balances (after balancing)
         adjusted_balances = {}
         if abs(total_imbalance) > 0.01:
@@ -78,8 +92,8 @@ def calculate():
             amt = min(debtors[i][1], creditors[j][1])
             if amt > 0.01:
                 transactions.append({
-                    "payer": debtors[i][0], 
-                    "receiver": creditors[j][0], 
+                    "payer": debtors[i][0],
+                    "receiver": creditors[j][0],
                     "amount": round(amt, 2)
                 })
             debtors[i] = (debtors[i][0], debtors[i][1] - amt)
@@ -104,8 +118,8 @@ def calculate():
             "total_imbalance": round(total_imbalance, 2),
             "has_imbalance": abs(total_imbalance) > 0.01
         })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+    except Exception:
+        return jsonify({"error": "An error occurred during calculation"}), 400
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
