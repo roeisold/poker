@@ -25,20 +25,27 @@
         </form>
     </div>
     <script>
+        // Helper to escape HTML and prevent XSS
         function escapeHTML(str) {
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
+            if (!str) return '';
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
         const DEFAULT_CHIP_VALUES = {{ chip_values|tojson }};
         const DEFAULT_SELECTED_CHIPS = {{ selected_chips|tojson }};
         const ALL_CHIPS = {{ all_chips|tojson }};
-        
+
         // Load from localStorage or use defaults
         let chipValues = JSON.parse(localStorage.getItem('chipValues')) || DEFAULT_CHIP_VALUES;
         let selectedChips = JSON.parse(localStorage.getItem('selectedChips')) || DEFAULT_SELECTED_CHIPS;
-        
+
         // Render chips
         const container = document.getElementById('chipsContainer');
         const selectedSet = new Set(selectedChips);
@@ -57,7 +64,7 @@
                 </div>
             </div>
         `}).join('');
-        
+
         // Toggle active state
         document.querySelectorAll('.chip-toggle').forEach(el => {
             el.onchange = (e) => {
@@ -77,29 +84,29 @@
         // Save to localStorage
         document.getElementById('setupForm').onsubmit = async (e) => {
             e.preventDefault();
-            
+
             const newChipValues = {};
             const newSelectedChips = [];
-            
+
             ALL_CHIPS.forEach(chip => {
                 newChipValues[chip] = parseFloat(document.getElementById(`val-${chip}`).value);
             });
-            
+
             document.querySelectorAll('.chip-toggle:checked').forEach(el => {
                 newSelectedChips.push(el.dataset.chip);
             });
-            
+
             // Save to localStorage
             localStorage.setItem('chipValues', JSON.stringify(newChipValues));
             localStorage.setItem('selectedChips', JSON.stringify(newSelectedChips));
-            
+
             // Also send to server (optional, for compatibility)
             await fetch('/save-chip-values', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ chip_values: newChipValues, selected_chips: newSelectedChips })
             });
-            
+
             window.location.href = '/';
         };
     </script>
