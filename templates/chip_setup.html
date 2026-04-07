@@ -109,5 +109,20 @@
             window.location.href = '/';
         };
     </script>
+    <script>
+        // Fix Chrome bug where clicking input padding puts caret at left border
+        document.addEventListener('mousedown', function(e) {
+            if (e.target.tagName === 'INPUT' && (e.target.type === 'text' || e.target.type === 'number')) {
+                const rect = e.target.getBoundingClientRect();
+                if (e.clientX - rect.left <= 12) {
+                    e.preventDefault();
+                    e.target.focus();
+                    if(e.target.type === 'text') {
+                        try { e.target.setSelectionRange(0, 0); } catch(err) {}
+                    }
+                }
+            }
+        });
+    </script>
 </body>
 </html>
