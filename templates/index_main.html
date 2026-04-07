@@ -117,9 +117,9 @@
             chipDisplay.innerHTML = selectedChips.map(chip => {
                 const escapedChip = escapeHTML(chip);
                 return `
-                <div class="chip-badge" aria-label="${escapedChip} chip value: ${chipValues[chip].toFixed(2)}">
-                    <span class="dot" style="background-color: ${escapedChip === 'white' ? 'white' : escapedChip};" aria-hidden="true"></span>
-                    ${escapedChip.charAt(0).toUpperCase() + escapedChip.slice(1)}: <strong class="ms-1 text-success">${chipValues[chip].toFixed(2)}</strong>
+                <div class="chip-badge">
+                    <span class="dot" style="background-color: ${escapedChip === 'white' ? 'white' : escapedChip};"></span>
+                    ${escapedChip.charAt(0).toUpperCase() + escapedChip.slice(1)}: <strong class="ms-1 text-success">$${chipValues[chip].toFixed(2)}</strong>
                 </div>
             `}).join('');
         }
@@ -176,13 +176,13 @@
                 div.className = 'friend-entry';
                 const escapedName = escapeHTML(playerData?.name || '');
                 let html = `
-                    <button type="button" class="btn btn-sm btn-outline-danger remove-player-btn" aria-label="Remove player">×</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-player-btn">×</button>
                     <div class="row g-3 mb-3">
                         <div class="col-7">
                             <input type="text" class="form-control friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}">
                         </div>
                         <div class="col-5">
-                            <input type="number" class="form-control buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}">
+                            <input type="number" class="form-control buy-in" placeholder="Buy In $" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}">
                         </div>
                     </div>
                     <div class="d-flex flex-wrap justify-content-start">`;
@@ -192,8 +192,8 @@
                     const escapedChip = escapeHTML(chip);
                     html += `
                         <div class="chip-input-group">
-                            <img src="/static/${escapedChip}-chip.jpg" class="chip-img-s" alt="${escapedChip} chip">
-                            <input type="number" class="chip-val-input ${escapedChip}-count" placeholder="0" min="0" value="${chipCount}" autocomplete="off" aria-label="${escapedChip} chip count">
+                            <img src="/static/${escapedChip}-chip.jpg" class="chip-img-s">
+                            <input type="number" class="chip-val-input ${escapedChip}-count" placeholder="0" min="0" value="${chipCount}" autocomplete="off">
                         </div>`;
                 });
 
@@ -226,12 +226,6 @@
 
             form.onsubmit = async (e) => {
                 e.preventDefault();
-
-                const submitBtn = e.target.querySelector('button[type="submit"]');
-                const originalBtnContent = submitBtn.innerHTML;
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Calculating...';
-
                 const friends = []; const buy_ins = {}; const chip_counts = {};
 
                 document.querySelectorAll('.friend-entry').forEach(entry => {
@@ -248,65 +242,47 @@
                 // Save before calculating
                 savePlayerData();
 
-                try {
-                    const res = await fetch('/calculate', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            friends,
-                            buy_ins,
-                            chip_counts,
-                            chip_values: chipValues,
-                            selected_chips: selectedChips
-                        })
-                    });
+                const res = await fetch('/calculate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        friends,
+                        buy_ins,
+                        chip_counts,
+                        chip_values: chipValues,
+                        selected_chips: selectedChips
+                    })
+                });
 
-                    const data = await res.json();
-                
-                    // Populate player summary table
-                    const playersTable = document.getElementById('playersSummaryTable');
-                    let summaryHtml = data.players_summary.map(p => {
-                        const profitClass = p.profit_loss_original > 0 ? 'profit-positive' : p.profit_loss_original < 0 ? 'profit-negative' : 'profit-zero';
-                        const balancedClass = p.profit_loss_balanced > 0 ? 'profit-positive' : p.profit_loss_balanced < 0 ? 'profit-negative' : 'profit-zero';
-                        return `
-                            <tr>
-                                <td><strong>${escapeHTML(p.name)}</strong></td>
-                                <td class="text-end">${p.buy_in.toFixed(2)}</td>
-                                <td class="text-end">${p.chip_total.toFixed(2)}</td>
-                                <td class="text-end ${profitClass}">${p.profit_loss_original >= 0 ? '+' : ''}${p.profit_loss_original.toFixed(2)}</td>
-                                <td class="text-end ${balancedClass}">${p.profit_loss_balanced >= 0 ? '+' : ''}${p.profit_loss_balanced.toFixed(2)}</td>
-                            </tr>
-                        `;
-                    }).join('');
+                const data = await res.json();
 
-                    if (data.has_imbalance) {
-                        summaryHtml += `
-                            <tr class="table-warning text-dark">
-                                <td colspan="4"><strong>Total Imbalance (Needs Adjustment)</strong></td>
-                                <td class="text-end"><strong>${data.total_imbalance >= 0 ? '+' : ''}${data.total_imbalance.toFixed(2)}</strong></td>
-                            </tr>
-                        `;
-                    }
-                    playersTable.innerHTML = summaryHtml;
+                // Populate player summary table
+                const playersTable = document.getElementById('playersSummaryTable');
+                playersTable.innerHTML = data.players_summary.map(p => {
+                    const profitClass = p.profit_loss_original > 0 ? 'profit-positive' : p.profit_loss_original < 0 ? 'profit-negative' : 'profit-zero';
+                    const balancedClass = p.profit_loss_balanced > 0 ? 'profit-positive' : p.profit_loss_balanced < 0 ? 'profit-negative' : 'profit-zero';
+                    return `
+                        <tr>
+                            <td><strong>${escapeHTML(p.name)}</strong></td>
+                            <td class="text-end">$${p.buy_in.toFixed(2)}</td>
+                            <td class="text-end">$${p.chip_total.toFixed(2)}</td>
+                            <td class="text-end ${profitClass}">${p.profit_loss_original >= 0 ? '+' : ''}$${p.profit_loss_original.toFixed(2)}</td>
+                            <td class="text-end ${balancedClass}">${p.profit_loss_balanced >= 0 ? '+' : ''}$${p.profit_loss_balanced.toFixed(2)}</td>
+                        </tr>
+                    `;
+                }).join('');
 
-                    // Populate transactions
-                    const container = document.getElementById('transactionsList');
-                    container.innerHTML = data.transactions.map(t => `
-                        <div class="list-group-item bg-transparent border-secondary d-flex justify-content-between align-items-center py-3">
-                            <span><b class="text-danger">${escapeHTML(t.payer)}</b> pays <b class="text-success">${escapeHTML(t.receiver)}</b></span>
-                            <span class="fs-5 fw-bold text-white">${t.amount.toFixed(2)}</span>
-                        </div>
-                    `).join('') || '<div class="text-center text-muted">Everyone is even!</div>';
+                // Populate transactions
+                const container = document.getElementById('transactionsList');
+                container.innerHTML = data.transactions.map(t => `
+                    <div class="list-group-item bg-transparent border-secondary d-flex justify-content-between align-items-center py-3">
+                        <span><b class="text-danger">${escapeHTML(t.payer)}</b> pays <b class="text-success">${escapeHTML(t.receiver)}</b></span>
+                        <span class="fs-5 fw-bold text-white">$${t.amount.toFixed(2)}</span>
+                    </div>
+                `).join('') || '<div class="text-center text-muted">Everyone is even!</div>';
 
-                    document.getElementById('resultsCard').style.display = 'block';
-                    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-                } catch (error) {
-                    console.error('Error calculating debts:', error);
-                    alert('There was an error calculating the debts. Please try again.');
-                } finally {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnContent;
-                }
+                document.getElementById('resultsCard').style.display = 'block';
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
             };
         });
     </script>

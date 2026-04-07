@@ -48,7 +48,6 @@
 
         // Render chips
         const container = document.getElementById('chipsContainer');
-        const selectedSet = new Set(selectedChips);
         container.innerHTML = ALL_CHIPS.map(chip => {
             const escapedChip = escapeHTML(chip);
             return `
