@@ -41,30 +41,29 @@
         const DEFAULT_CHIP_VALUES = {{ chip_values|tojson }};
         const DEFAULT_SELECTED_CHIPS = {{ selected_chips|tojson }};
         const ALL_CHIPS = {{ all_chips|tojson }};
-
+        
         // Load from localStorage or use defaults
         let chipValues = JSON.parse(localStorage.getItem('chipValues')) || DEFAULT_CHIP_VALUES;
         let selectedChips = JSON.parse(localStorage.getItem('selectedChips')) || DEFAULT_SELECTED_CHIPS;
-
+        
         // Render chips
         const container = document.getElementById('chipsContainer');
-        const selectedSet = new Set(selectedChips);
         container.innerHTML = ALL_CHIPS.map(chip => {
             const escapedChip = escapeHTML(chip);
             return `
             <div class="col-6 col-md-3">
-                <div class="chip-card ${selectedSet.has(chip) ? 'active' : ''}" id="card-${escapedChip}">
-                    <input type="checkbox" class="form-check-input chip-toggle" data-chip="${escapedChip}" ${selectedSet.has(chip) ? 'checked' : ''}>
+                <div class="chip-card ${selectedChips.includes(chip) ? 'active' : ''}" id="card-${escapedChip}">
+                    <input type="checkbox" class="form-check-input chip-toggle" data-chip="${escapedChip}" ${selectedChips.includes(chip) ? 'checked' : ''}>
                     <div class="mt-2"><img src="/static/${escapedChip}-chip.jpg" class="chip-img-l"></div>
                     <div class="small text-muted text-uppercase mb-2">${escapedChip}</div>
                     <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-dark border-secondary">Value</span>
+                        <span class="input-group-text bg-dark border-secondary">$</span>
                         <input type="number" class="form-control bg-dark text-white border-secondary text-center" id="val-${escapedChip}" value="${chipValues[chip]}" step="0.01">
                     </div>
                 </div>
             </div>
         `}).join('');
-
+        
         // Toggle active state
         document.querySelectorAll('.chip-toggle').forEach(el => {
             el.onchange = (e) => {
@@ -84,29 +83,29 @@
         // Save to localStorage
         document.getElementById('setupForm').onsubmit = async (e) => {
             e.preventDefault();
-
+            
             const newChipValues = {};
             const newSelectedChips = [];
-
+            
             ALL_CHIPS.forEach(chip => {
                 newChipValues[chip] = parseFloat(document.getElementById(`val-${chip}`).value);
             });
-
+            
             document.querySelectorAll('.chip-toggle:checked').forEach(el => {
                 newSelectedChips.push(el.dataset.chip);
             });
-
+            
             // Save to localStorage
             localStorage.setItem('chipValues', JSON.stringify(newChipValues));
             localStorage.setItem('selectedChips', JSON.stringify(newSelectedChips));
-
+            
             // Also send to server (optional, for compatibility)
             await fetch('/save-chip-values', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ chip_values: newChipValues, selected_chips: newSelectedChips })
             });
-
+            
             window.location.href = '/';
         };
     </script>
