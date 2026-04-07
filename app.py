@@ -1,3 +1,5 @@
+import gzip
+import io
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
@@ -12,14 +14,14 @@ DEFAULT_SELECTED_CHIPS = ["white", "red", "green", "blue", "black"]
 @app.route('/', methods=['GET'])
 def index():
     # Defaults will be overridden by localStorage on the frontend
-    return render_template('index.html', 
+    return render_template('index.html',
                           chip_values=DEFAULT_CHIP_VALUES,
                           selected_chips=DEFAULT_SELECTED_CHIPS)
 
 @app.route('/chip-setup', methods=['GET'])
 def chip_setup():
     # Defaults will be overridden by localStorage on the frontend
-    return render_template('chip_setup.html', 
+    return render_template('chip_setup.html',
                           chip_values=DEFAULT_CHIP_VALUES,
                           selected_chips=DEFAULT_SELECTED_CHIPS,
                           all_chips=list(DEFAULT_CHIP_VALUES.keys()))
@@ -29,36 +31,85 @@ def save_chip_values():
     # Frontend handles persistence via localStorage
     return jsonify({"success": True})
 
+@app.after_request
+def optimize_delivery(response):
+    """
+    Bolt ⚡: Optimize delivery by enabling Gzip compression and browser caching.
+    """
+    # 1. Add Browser Caching for static assets (Flask 2.3+ compatible)
+    if request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'public, max-age=31536000'
+
+    # 2. Add Gzip Compression
+    accept_encoding = request.headers.get('Accept-Encoding', '')
+    if 'gzip' not in accept_encoding.lower():
+        return response
+
+    # Skip if already encoded or not a successful response
+    if (response.status_code < 200 or
+        response.status_code >= 300 or
+        'Content-Encoding' in response.headers):
+        return response
+
+    # Get the response content
+    if response.direct_passthrough:
+        # For direct_passthrough (like static files), we need to read from the response.response iterator
+        content = b"".join(response.response)
+    else:
+        content = response.get_data()
+
+    # Skip compression for small payloads
+    if len(content) < 500:
+        return response
+
+    # Compress the content
+    gzip_buffer = io.BytesIO()
+    with gzip.GzipFile(mode='wb', fileobj=gzip_buffer) as gzip_file:
+        gzip_file.write(content)
+
+    compressed_content = gzip_buffer.getvalue()
+
+    # Update response with compressed data and necessary headers
+    response.direct_passthrough = False
+    response.set_data(compressed_content)
+    response.headers['Content-Encoding'] = 'gzip'
+    response.headers['Content-Length'] = len(compressed_content)
+
+    # Critical: Add Vary header to ensure correct caching by proxies/CDNs
+    response.headers['Vary'] = 'Accept-Encoding'
+
+    return response
+
 @app.route('/calculate', methods=['POST'])
 def calculate():
     try:
         data = request.json
         friends = data.get('friends', [])
-        
+
         # Get chip values from request (sent from frontend localStorage)
         chip_values = data.get('chip_values', DEFAULT_CHIP_VALUES)
         selected_chips = data.get('selected_chips', DEFAULT_SELECTED_CHIPS)
-        
+
         # Calculation logic
         original_balances = {}
         chip_totals = {}
         buy_ins_dict = {}
-        
+
         for i, friend in enumerate(friends):
             name, _ = friend
             buy_in = data.get('buy_ins', {}).get(name, 0)
             chip_counts = data.get('chip_counts', {}).get(name, {})
-            chip_total = sum(chip_counts.get(color, 0) * chip_values.get(color, 0) 
+            chip_total = sum(chip_counts.get(color, 0) * chip_values.get(color, 0)
                           for color in selected_chips if color in chip_values)
-            
+
             actual_balance = chip_total - buy_in
             original_balances[name] = actual_balance
             chip_totals[name] = chip_total
             buy_ins_dict[name] = buy_in
             friends[i] = (name, actual_balance)
-        
+
         total_imbalance = sum(amt for _, amt in friends)
-        
+
         # Calculate adjusted balances (after balancing)
         adjusted_balances = {}
         if abs(total_imbalance) > 0.01:
@@ -78,8 +129,8 @@ def calculate():
             amt = min(debtors[i][1], creditors[j][1])
             if amt > 0.01:
                 transactions.append({
-                    "payer": debtors[i][0], 
-                    "receiver": creditors[j][0], 
+                    "payer": debtors[i][0],
+                    "receiver": creditors[j][0],
                     "amount": round(amt, 2)
                 })
             debtors[i] = (debtors[i][0], debtors[i][1] - amt)
