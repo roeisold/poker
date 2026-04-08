@@ -29,6 +29,14 @@ def save_chip_values():
     # Frontend handles persistence via localStorage
     return jsonify({"success": True})
 
+@app.after_request
+def add_header(response):
+    # Set Cache-Control header for static assets to improve performance for returning visitors
+    if request.path.startswith('/static/'):
+        response.cache_control.public = True
+        response.cache_control.max_age = 31536000
+    return response
+
 @app.route('/calculate', methods=['POST'])
 def calculate():
     try:
