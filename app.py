@@ -30,11 +30,19 @@ def save_chip_values():
     return jsonify({"success": True})
 
 @app.after_request
-def add_header(response):
-    # Set Cache-Control header for static assets to improve performance for returning visitors
+def add_security_headers(response):
+    # Implement CSP as per requirements
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+        "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+        "img-src 'self' data:;"
+    )
+
+    # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
-        response.cache_control.public = True
-        response.cache_control.max_age = 31536000
+        response.headers['Cache-Control'] = 'public, max-age=31536000'
+
     return response
 
 @app.route('/calculate', methods=['POST'])
@@ -112,8 +120,10 @@ def calculate():
             "total_imbalance": round(total_imbalance, 2),
             "has_imbalance": abs(total_imbalance) > 0.01
         })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+    except Exception:
+        # Generic error message to avoid information leakage
+        return jsonify({"error": "An error occurred during calculation"}), 400
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Disable debug mode for production security
+    app.run(debug=False)
