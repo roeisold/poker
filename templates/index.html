@@ -171,11 +171,11 @@
             form.reset();
             friendsList.innerHTML = '';
 
-            const createPlayer = (playerData = null) => {
+            const createPlayer = (playerData = null, shouldFocus = false) => {
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
                 const escapedName = escapeHTML(playerData?.name || '');
-                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><input type="text" class="form-control friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div><div class="col-4"><input type="number" class="form-control buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
+                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><input type="text" class="form-control friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div><div class="col-4"><input type="number" class="form-control buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player" title="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
 
                 selectedChips.forEach(chip => {
                     const chipCount = playerData?.chipCounts?.[chip] || '0';
@@ -196,11 +196,16 @@
                     savePlayerData();
                 };
 
-                // Add auto-save on input change
+                // Add auto-save on input change and auto-select on focus
                 div.querySelectorAll('input').forEach(input => {
                     input.addEventListener('input', savePlayerData);
                     input.addEventListener('change', savePlayerData);
+                    input.addEventListener('focus', () => input.select());
                 });
+
+                if (shouldFocus) {
+                    setTimeout(() => div.querySelector('.friend-name').focus(), 0);
+                }
             };
 
             // Load saved players or create default ones
@@ -212,7 +217,7 @@
                 createPlayer();
             }
 
-            document.getElementById('addPlayerBtn').onclick = () => createPlayer();
+            document.getElementById('addPlayerBtn').onclick = () => createPlayer(null, true);
 
             form.onsubmit = async (e) => {
                 e.preventDefault();

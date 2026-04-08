@@ -71,6 +71,11 @@
             };
         });
 
+        // Auto-select on focus for value inputs
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('focus', () => input.select());
+        });
+
         // Reset button
         document.getElementById('resetBtn').onclick = () => {
             if (confirm('Reset all chip values to defaults? This cannot be undone.')) {
