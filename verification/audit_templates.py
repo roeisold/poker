@@ -43,6 +43,19 @@ def audit_file(filepath):
             print(f"  FAILED: ALL_CHIPS.map not properly secured in {filepath}")
             return False
 
+        if 'value="${escapeHTML(chipValues[chip])}"' not in content:
+            print(f"  FAILED: chip value not escaped in {filepath}")
+            return False
+
+    # 3. Check for escaped inputs in createPlayer in index.html
+    if 'index.html' in filepath:
+        if 'value="${escapedBuyIn}"' not in content:
+            print(f"  FAILED: buyIn not escaped in {filepath}")
+            return False
+        if 'value="${escapedChipCount}"' not in content:
+            print(f"  FAILED: chipCount not escaped in {filepath}")
+            return False
+
     print(f"  PASSED audit for {filepath}")
     return True
 
