@@ -1,3 +1,5 @@
+import gzip
+import io
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
@@ -42,6 +44,42 @@ def add_security_headers(response):
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000'
+
+    return response
+
+@app.after_request
+def compress(response):
+    """Implement manual Gzip compression for HTML and JSON responses."""
+    accept_encoding = request.headers.get("Accept-Encoding", "")
+
+    if (
+        "gzip" not in accept_encoding.lower()
+        or not (200 <= response.status_code < 300)
+        or "Content-Encoding" in response.headers
+        or response.direct_passthrough
+    ):
+        return response
+
+    # Only compress common text-based formats
+    content_type = response.mimetype
+    if content_type not in ["text/html", "application/json", "text/css", "application/javascript"]:
+        return response
+
+    buffer = io.BytesIO()
+    with gzip.GzipFile(mode="wb", fileobj=buffer) as f:
+        f.write(response.get_data())
+
+    response.set_data(buffer.getvalue())
+    response.headers["Content-Encoding"] = "gzip"
+    response.headers["Content-Length"] = len(response.get_data())
+
+    # Ensure Vary header is set for cache-friendliness
+    vary = response.headers.get("Vary")
+    if vary:
+        if "Accept-Encoding" not in vary:
+            response.headers["Vary"] = f"{vary}, Accept-Encoding"
+    else:
+        response.headers["Vary"] = "Accept-Encoding"
 
     return response
 
