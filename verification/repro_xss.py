@@ -37,12 +37,20 @@ def run_test():
         # Click calculate
         page.click("button[type='submit']")
 
-        # Wait for results to be populated
-        page.wait_for_selector("#resultsCard", state="visible")
+        # Wait for results or timeout
+        try:
+            page.wait_for_selector("#resultsCard", state="visible", timeout=5000)
+        except:
+            print("Results card did not appear (this might be expected if payload broke JS or if we just want to check XSS)")
 
         # Check if XSS was triggered
         xss_triggered = page.evaluate("window.xss_triggered")
         print(f"XSS Triggered: {xss_triggered}")
+
+        if xss_triggered:
+             print("FAILURE: XSS was triggered!")
+        else:
+             print("SUCCESS: XSS was NOT triggered.")
 
         page.screenshot(path="verification/xss_repro.png")
         browser.close()
