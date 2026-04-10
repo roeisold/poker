@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, jsonify
+import gzip
+import io
 
 app = Flask(__name__)
 
@@ -30,7 +32,7 @@ def save_chip_values():
     return jsonify({"success": True})
 
 @app.after_request
-def add_security_headers(response):
+def apply_optimizations(response):
     # Implement CSP as per requirements
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
@@ -42,6 +44,34 @@ def add_security_headers(response):
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000'
+
+    # Manual Gzip compression for text-based responses
+    accept_encoding = request.headers.get('Accept-Encoding', '').lower()
+    if (
+        'gzip' in accept_encoding and
+        response.status_code >= 200 and
+        response.status_code < 300 and
+        response.mimetype in ['text/html', 'application/json', 'text/css', 'application/javascript'] and
+        'Content-Encoding' not in response.headers
+    ):
+        # Handle regular and direct_passthrough responses
+        if response.direct_passthrough:
+            content = b"".join(response.response)
+            response.response = [content]  # Restore in case we don't compress
+        else:
+            content = response.get_data()
+
+        if len(content) > 500:  # Only compress if worthwhile
+            gzip_buffer = io.BytesIO()
+            with gzip.GzipFile(mode='wb', fileobj=gzip_buffer) as gz:
+                gz.write(content)
+
+            response.set_data(gzip_buffer.getvalue())
+            response.headers['Content-Encoding'] = 'gzip'
+            response.headers['Content-Length'] = len(response.get_data())
+
+    # Ensure Vary header is set for correct caching
+    response.headers['Vary'] = 'Accept-Encoding'
 
     return response
 
