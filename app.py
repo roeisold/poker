@@ -1,3 +1,5 @@
+import gzip
+import io
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
@@ -30,8 +32,8 @@ def save_chip_values():
     return jsonify({"success": True})
 
 @app.after_request
-def add_security_headers(response):
-    # Implement CSP as per requirements
+def apply_optimizations(response):
+    # 1. Security Headers & Caching
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
         "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
@@ -39,9 +41,51 @@ def add_security_headers(response):
         "img-src 'self' data:;"
     )
 
-    # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000'
+
+    # 2. Gzip Compression
+    # Ensure Vary is set to allow correct caching by proxies/CDNs
+    vary = response.headers.get('Vary')
+    if vary:
+        if 'Accept-Encoding' not in vary:
+            response.headers['Vary'] = vary + ', Accept-Encoding'
+    else:
+        response.headers['Vary'] = 'Accept-Encoding'
+
+    accept_encoding = request.headers.get('Accept-Encoding', '')
+    if 'gzip' not in accept_encoding.lower() or \
+       response.status_code < 200 or \
+       response.status_code >= 300 or \
+       'Content-Encoding' in response.headers:
+        return response
+
+    # Only compress text-based formats
+    compress_types = ['text/html', 'application/json', 'text/css', 'application/javascript', 'text/javascript']
+    if response.mimetype.lower() not in compress_types:
+        return response
+
+    # Handle direct_passthrough responses (like static files)
+    # Reading the iterator exhausts it, so we must restore it if we don't compress
+    if response.direct_passthrough:
+        content = b"".join(response.response)
+    else:
+        content = response.get_data()
+
+    # Don't compress small responses
+    if len(content) < 500:
+        if response.direct_passthrough:
+            response.response = [content]
+        return response
+
+    # Compress the content
+    gzip_buffer = io.BytesIO()
+    with gzip.GzipFile(mode='wb', fileobj=gzip_buffer) as gzip_file:
+        gzip_file.write(content)
+
+    response.set_data(gzip_buffer.getvalue())
+    response.headers['Content-Encoding'] = 'gzip'
+    response.headers['Content-Length'] = len(response.get_data())
 
     return response
 
