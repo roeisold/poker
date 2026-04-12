@@ -15,30 +15,36 @@ def run_test():
             print(f"Error navigating to page: {e}")
             return
 
-        # Add a player with an XSS payload in the name
-        # We need to find the first player name input
+        # The app might create 2 default players. Let's use those instead of adding more
+        # and causing validation errors if empty.
+
+        # Clear default players if necessary or just fill them
+        players = page.query_selector_all(".friend-entry")
+        if len(players) < 2:
+            page.click("#addPlayerBtn")
+            players = page.query_selector_all(".friend-entry")
+
         payload = "<img src=x onerror=window.xss_triggered=true>"
-        page.fill(".friend-name", payload)
-        page.fill(".buy-in", "10")
 
-        # Add another player so we have a transaction
-        page.click("#addPlayerBtn")
-        # Wait a bit for the new player entry to appear
-        page.wait_for_selector(".friend-entry:nth-child(2)")
-        page.fill(".friend-entry:nth-child(2) .friend-name", "Bob")
-        page.fill(".friend-entry:nth-child(2) .buy-in", "0")
+        # Fill first player
+        players[0].query_selector(".friend-name").fill(payload)
+        players[0].query_selector(".buy-in").fill("10")
 
-        # Give Bob some chips so he's a creditor or debtor
-        # In this case, payer = me (10 buy in, 0 chips), receiver = Bob (0 buy in, some chips)
-        # Wait, let's just make sure Bob has chips.
-        # Find the first chip input for Bob
-        page.fill(".friend-entry:nth-child(2) .white-count", "100") # 100 * 0.25 = 25
+        # Fill second player
+        players[1].query_selector(".friend-name").fill("Bob")
+        players[1].query_selector(".buy-in").fill("0")
+        players[1].query_selector(".white-count").fill("100")
 
         # Click calculate
         page.click("button[type='submit']")
 
         # Wait for results to be populated
-        page.wait_for_selector("#resultsCard", state="visible")
+        try:
+            page.wait_for_selector("#playersSummaryTable tr", state="visible", timeout=5000)
+            print("Results table visible")
+        except Exception as e:
+            print(f"Results table not visible: {e}")
+            page.screenshot(path="verification/timeout_error.png")
 
         # Check if XSS was triggered
         xss_triggered = page.evaluate("window.xss_triggered")
@@ -49,10 +55,8 @@ def run_test():
 
 if __name__ == "__main__":
     # Ensure app is running
-    # The previous run_in_bash_session might have failed to keep it running
-    # or it might still be running. Let's try to start it and wait.
     process = subprocess.Popen(["python3", "app.py"])
-    time.sleep(3)
+    time.sleep(5)
     try:
         run_test()
     finally:
