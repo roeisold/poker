@@ -106,6 +106,7 @@
                         <h5 class="mb-3 mt-4">Transactions</h5>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
 
+                        <button id="copyResultsBtn" onclick="copyResults()" class="btn btn-outline-success w-100 mb-2">Copy Payout Results</button>
                         <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
                     </div>
                 </div>
@@ -185,6 +186,36 @@
             }
         }
 
+        // Copy results to clipboard
+        function copyResults() {
+            const data = window.lastCalculationData;
+            if (!data || !data.transactions) return;
+
+            let text = "🃏 Poker Payout Results 🃏\n\n";
+            if (data.transactions.length === 0) {
+                text += "Everyone is even!";
+            } else {
+                text += data.transactions.map(t => `• ${t.payer} pays ${t.receiver}: $${t.amount.toFixed(2)}`).join('\n');
+            }
+
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyResultsBtn');
+                const originalText = btn.innerText;
+                btn.innerText = "✓ Copied!";
+                btn.classList.remove('btn-outline-success');
+                btn.classList.add('btn-success');
+
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-success');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard.');
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('playerForm');
             const friendsList = document.getElementById('friendsList');
@@ -192,7 +223,7 @@
             form.reset();
             friendsList.innerHTML = '';
 
-            const createPlayer = (playerData = null) => {
+            const createPlayer = (playerData = null, shouldFocus = false) => {
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
                 const escapedName = escapeHTML(playerData?.name || '');
@@ -201,15 +232,21 @@
                 selectedChips.forEach(chip => {
                     const chipCount = playerData?.chipCounts?.[chip] || '0';
                     const escapedChip = escapeHTML(chip);
+                    const chipValue = chipValues[chip] || 0;
+                    const ariaLabel = `${escapedChip} chip count (value: ${chipValue.toFixed(2)})`;
                     html += `
-                        <div class="chip-input-group">
+                        <div class="chip-input-group" title="${ariaLabel}">
                             <img src="/static/${escapedChip}-chip.jpg" class="chip-img-s" alt="${escapedChip} chip">
-                            <input type="number" class="chip-val-input ${escapedChip}-count" placeholder="0" min="0" value="${chipCount}" autocomplete="off" aria-label="${escapedChip} chip count">
+                            <input type="number" class="chip-val-input ${escapedChip}-count" placeholder="0" min="0" value="${chipCount}" autocomplete="off" aria-label="${ariaLabel}">
                         </div>`;
                 });
 
                 div.innerHTML = html + `</div>`;
                 friendsList.appendChild(div);
+
+                if (shouldFocus) {
+                    div.querySelector('.friend-name').focus();
+                }
 
                 // Add remove button handler
                 div.querySelector('.remove-player-btn').onclick = () => {
@@ -233,7 +270,7 @@
                 createPlayer();
             }
 
-            document.getElementById('addPlayerBtn').onclick = () => createPlayer();
+            document.getElementById('addPlayerBtn').onclick = () => createPlayer(null, true);
 
             form.onsubmit = async (e) => {
                 e.preventDefault();
@@ -288,6 +325,7 @@
                     });
 
                     const data = await res.json();
+                    window.lastCalculationData = data;
                 
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
