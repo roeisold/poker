@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Poker Debt Settler</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .input-wrapper {
@@ -147,8 +148,21 @@
 
         updateChipDisplay();
 
+        // Debounce helper to limit execution frequency
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
         // Save player data to localStorage
-        function savePlayerData() {
+        const savePlayerData = debounce(() => {
             const players = [];
             document.querySelectorAll('.friend-entry').forEach(entry => {
                 const name = entry.querySelector('.friend-name').value.trim();
@@ -166,7 +180,7 @@
             });
 
             localStorage.setItem('playerData', JSON.stringify(players));
-        }
+        }, 500);
 
         // Load player data from localStorage
         function loadPlayerData() {
@@ -203,7 +217,7 @@
                     const escapedChip = escapeHTML(chip);
                     html += `
                         <div class="chip-input-group">
-                            <img src="/static/${escapedChip}-chip.jpg" class="chip-img-s" alt="${escapedChip} chip">
+                            <img src="/static/${escapedChip}-chip.jpg" class="chip-img-s" alt="${escapedChip} chip" loading="lazy" decoding="async">
                             <input type="number" class="chip-val-input ${escapedChip}-count" placeholder="0" min="0" value="${chipCount}" autocomplete="off" aria-label="${escapedChip} chip count">
                         </div>`;
                 });

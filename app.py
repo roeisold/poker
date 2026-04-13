@@ -1,3 +1,5 @@
+import gzip
+import io
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
@@ -30,7 +32,8 @@ def save_chip_values():
     return jsonify({"success": True})
 
 @app.after_request
-def add_security_headers(response):
+def apply_optimizations(response):
+    """Apply performance and security optimizations to all responses."""
     # Implement CSP as per requirements
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
@@ -42,6 +45,35 @@ def add_security_headers(response):
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000'
+
+    # Manual Gzip compression for text-based responses
+    accept_encoding = request.headers.get('Accept-Encoding', '')
+    content_type = response.content_type or ''
+    is_text = any(t in content_type for t in ['text/html', 'application/json', 'text/css', 'application/javascript'])
+
+    if (200 <= response.status_code < 300 and
+        'gzip' in accept_encoding.lower() and
+        is_text and
+        'Content-Encoding' not in response.headers and
+        not response.direct_passthrough):
+
+        content = response.get_data()
+        if len(content) > 500:  # Only compress if response is large enough
+            gzip_buffer = io.BytesIO()
+            with gzip.GzipFile(mode='wb', fileobj=gzip_buffer) as gzip_file:
+                gzip_file.write(content)
+
+            response.set_data(gzip_buffer.getvalue())
+            response.headers['Content-Encoding'] = 'gzip'
+            response.headers['Content-Length'] = len(response.get_data())
+
+    # Ensure Vary header includes Accept-Encoding for proper caching
+    vary = response.headers.get('Vary')
+    if vary:
+        if 'Accept-Encoding' not in vary:
+            response.headers['Vary'] = vary + ', Accept-Encoding'
+    else:
+        response.headers['Vary'] = 'Accept-Encoding'
 
     return response
 
