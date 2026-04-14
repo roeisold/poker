@@ -103,7 +103,10 @@
                         </div>
 
                         <!-- Transactions -->
-                        <h5 class="mb-3 mt-4">Transactions</h5>
+                        <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+                            <h5 class="mb-0">Transactions</h5>
+                            <button id="copyResultsBtn" onclick="copyResults()" class="btn btn-sm btn-outline-success" disabled aria-live="polite">Copy Payout Results</button>
+                        </div>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
 
                         <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
@@ -146,6 +149,31 @@
         }
 
         updateChipDisplay();
+
+        let lastCalculationData = null;
+
+        async function copyResults() {
+            if (!lastCalculationData || !lastCalculationData.transactions.length) return;
+
+            const btn = document.getElementById('copyResultsBtn');
+            const originalText = btn.innerText;
+
+            const text = lastCalculationData.transactions
+                .map(t => `• ${t.payer} pays ${t.receiver}: $${t.amount.toFixed(2)}`)
+                .join('\n');
+
+            try {
+                await navigator.clipboard.writeText(text);
+                btn.innerText = '✓ Copied!';
+                btn.classList.replace('btn-outline-success', 'btn-success');
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.classList.replace('btn-success', 'btn-outline-success');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+            }
+        }
 
         // Save player data to localStorage
         function savePlayerData() {
@@ -288,6 +316,15 @@
                     });
 
                     const data = await res.json();
+                    lastCalculationData = data;
+
+                    // Enable copy button if there are transactions
+                    const copyBtn = document.getElementById('copyResultsBtn');
+                    if (data.transactions && data.transactions.length > 0) {
+                        copyBtn.disabled = false;
+                    } else {
+                        copyBtn.disabled = true;
+                    }
                 
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
