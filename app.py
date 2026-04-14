@@ -1,3 +1,5 @@
+import gzip
+import io
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
@@ -30,8 +32,36 @@ def save_chip_values():
     return jsonify({"success": True})
 
 @app.after_request
-def add_security_headers(response):
-    # Implement CSP as per requirements
+def after_request_handler(response):
+    # Performance: Implement manual Gzip compression for text-based responses
+    accept_encoding = request.headers.get('Accept-Encoding', '').lower()
+
+    if (
+        'gzip' in accept_encoding and
+        response.status_code >= 200 and
+        response.status_code < 300 and
+        'Content-Encoding' not in response.headers and
+        (response.mimetype.startswith('text/') or response.mimetype == 'application/json' or response.mimetype.endswith('javascript') or response.mimetype.endswith('css')) and
+        not response.direct_passthrough
+    ):
+        content = response.get_data()
+        if len(content) > 500:  # Only compress if response is of significant size
+            gzip_buffer = io.BytesIO()
+            with gzip.GzipFile(mode='wb', fileobj=gzip_buffer) as gzip_file:
+                gzip_file.write(content)
+
+            response.set_data(gzip_buffer.getvalue())
+            response.headers['Content-Encoding'] = 'gzip'
+            response.headers['Content-Length'] = len(response.get_data())
+
+            vary = response.headers.get('Vary')
+            if vary:
+                if 'Accept-Encoding' not in vary:
+                    response.headers['Vary'] = vary + ', Accept-Encoding'
+            else:
+                response.headers['Vary'] = 'Accept-Encoding'
+
+    # Security: Implement CSP as per requirements
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
         "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
@@ -39,7 +69,7 @@ def add_security_headers(response):
         "img-src 'self' data:;"
     )
 
-    # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
+    # Performance: Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000'
 
