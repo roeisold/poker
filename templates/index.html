@@ -106,6 +106,7 @@
                         <h5 class="mb-3 mt-4">Transactions</h5>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
 
+                        <button id="copyResultsBtn" onclick="copyResults()" class="btn btn-sm btn-success w-100 mb-2" aria-live="polite">Copy Payout Results</button>
                         <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
                     </div>
                 </div>
@@ -183,6 +184,27 @@
                 localStorage.removeItem('playerData');
                 window.location.reload();
             }
+        }
+
+        // Copy results to clipboard
+        function copyResults() {
+            if (!window.lastCalculationData || !window.lastCalculationData.transactions) return;
+
+            const text = window.lastCalculationData.transactions.map(t =>
+                `• ${t.payer} pays ${t.receiver}: $${t.amount.toFixed(2)}`
+            ).join('\n') || 'Everyone is even!';
+
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyResultsBtn');
+                const originalText = btn.innerText;
+                btn.innerText = '✓ Copied!';
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+                alert('Could not copy to clipboard. Please select and copy manually.');
+            });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -288,6 +310,7 @@
                     });
 
                     const data = await res.json();
+                    window.lastCalculationData = data;
                 
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
