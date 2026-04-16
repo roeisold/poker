@@ -7,3 +7,7 @@
 ## 2025-01-24 - Duplicate Data Prevention
 **Learning:** Preventing duplicate names at the entry point is a simple but high-impact UX win that prevents downstream calculation errors and user confusion.
 **Action:** Implement case-insensitive duplicate checks for list-based inputs.
+
+## 2025-01-24 - Robust Clipboard Interaction
+**Learning:** Clipboard APIs can fail due to permission denials or non-secure contexts. Providing immediate visual feedback for success and a fallback alert for failure ensures a reliable user experience.
+**Action:** Always include a `.catch()` block with user-facing feedback when using `navigator.clipboard.writeText`.
