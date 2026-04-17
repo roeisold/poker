@@ -1,3 +1,5 @@
+import gzip
+import io
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
@@ -30,7 +32,7 @@ def save_chip_values():
     return jsonify({"success": True})
 
 @app.after_request
-def add_security_headers(response):
+def post_process_response(response):
     # Implement CSP as per requirements
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
@@ -42,6 +44,42 @@ def add_security_headers(response):
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000'
+
+    # Manual Gzip compression for text-based responses > 500 bytes
+    # Check if client supports gzip, response is successful, and not already encoded
+    accept_encoding = request.headers.get('Accept-Encoding', '')
+    if (
+        'gzip' in accept_encoding.lower() and
+        200 <= response.status_code < 300 and
+        'Content-Encoding' not in response.headers
+    ):
+        content_type = response.content_type or ''
+        if any(t in content_type for t in ['text/', 'json', 'javascript']):
+            # Get content, handling direct_passthrough which might be an iterator
+            if response.direct_passthrough:
+                content = b"".join(response.response)
+                # Restore iterator if we end up not compressing or after reading
+                response.response = [content]
+            else:
+                content = response.get_data()
+
+            # Only compress if it's large enough to be worth it
+            if len(content) > 500:
+                gzip_buffer = io.BytesIO()
+                with gzip.GzipFile(mode='wb', fileobj=gzip_buffer) as f:
+                    f.write(content)
+
+                response.set_data(gzip_buffer.getvalue())
+                response.headers['Content-Encoding'] = 'gzip'
+                response.headers['Content-Length'] = len(response.get_data())
+
+    # Ensure Vary: Accept-Encoding is set for correct caching
+    vary = response.headers.get('Vary')
+    if vary:
+        if 'Accept-Encoding' not in vary:
+            response.headers['Vary'] = vary + ', Accept-Encoding'
+    else:
+        response.headers['Vary'] = 'Accept-Encoding'
 
     return response
 
