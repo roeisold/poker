@@ -37,10 +37,26 @@ def audit_file(filepath):
             print(f"  FAILED: playerData.name not escaped in {filepath}")
             return False
 
+        if 'escapedBuyIn' not in content or 'escapeHTML(playerData?.buyIn || \'\')' not in content:
+            print(f"  FAILED: playerData.buyIn not escaped in {filepath}")
+            return False
+
+        if 'escapeHTML(chipCount)' not in content:
+            print(f"  FAILED: chipCount not escaped in {filepath}")
+            return False
+
+        if 'chipVal = ' not in content or 'escapeHTML(chipValues[chip])' not in content:
+             print(f"  FAILED: chipValues[chip] not escaped in {filepath}")
+             return False
+
     # 2. Look for ALL_CHIPS.map in chip_setup.html
     if 'chip_setup.html' in filepath:
         if 'ALL_CHIPS.map(chip => {' not in content or 'escapeHTML(chip)' not in content:
             print(f"  FAILED: ALL_CHIPS.map not properly secured in {filepath}")
+            return False
+
+        if 'escapeHTML(chipValues[chip])' not in content:
+            print(f"  FAILED: chipValues[chip] not escaped in {filepath}")
             return False
 
     print(f"  PASSED audit for {filepath}")
