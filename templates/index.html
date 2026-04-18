@@ -83,7 +83,12 @@
 
                 <div id="resultsCard" class="card bg-dark border-secondary mt-5" style="display:none">
                     <div class="card-body p-4">
-                        <h4 class="text-success mb-4">Settlement Plan</h4>
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4 class="text-success mb-0">Settlement Plan</h4>
+                            <button id="copyResultsBtn" onclick="copyResults()" class="btn btn-sm btn-outline-success" style="display: none;" aria-live="polite">
+                                📋 Copy Payouts
+                            </button>
+                        </div>
 
                         <!-- Player Summary Table -->
                         <h5 class="mb-3">Player Summary</h5>
@@ -147,6 +152,28 @@
 
         updateChipDisplay();
 
+        let lastCalculationData = null;
+
+        function copyResults() {
+            if (!lastCalculationData || !lastCalculationData.transactions.length) return;
+
+            const text = lastCalculationData.transactions.map(t =>
+                `• ${t.payer} pays ${t.receiver}: $${t.amount.toFixed(2)}`
+            ).join('\n');
+
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyResultsBtn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✓ Copied!';
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard. Please copy the text manually.');
+            });
+        }
+
         // Save player data to localStorage
         function savePlayerData() {
             const players = [];
@@ -192,11 +219,11 @@
             form.reset();
             friendsList.innerHTML = '';
 
-            const createPlayer = (playerData = null) => {
+            const createPlayer = (playerData = null, shouldFocus = false) => {
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
                 const escapedName = escapeHTML(playerData?.name || '');
-                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
+                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" aria-label="Player name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" aria-label="Buy in amount" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player" title="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
 
                 selectedChips.forEach(chip => {
                     const chipCount = playerData?.chipCounts?.[chip] || '0';
@@ -210,6 +237,12 @@
 
                 div.innerHTML = html + `</div>`;
                 friendsList.appendChild(div);
+
+                if (shouldFocus) {
+                    setTimeout(() => {
+                        div.querySelector('.friend-name').focus();
+                    }, 0);
+                }
 
                 // Add remove button handler
                 div.querySelector('.remove-player-btn').onclick = () => {
@@ -233,7 +266,7 @@
                 createPlayer();
             }
 
-            document.getElementById('addPlayerBtn').onclick = () => createPlayer();
+            document.getElementById('addPlayerBtn').onclick = () => createPlayer(null, true);
 
             form.onsubmit = async (e) => {
                 e.preventDefault();
@@ -288,7 +321,12 @@
                     });
 
                     const data = await res.json();
+                    lastCalculationData = data;
                 
+                    // Show/hide copy button based on transactions
+                    const copyBtn = document.getElementById('copyResultsBtn');
+                    copyBtn.style.display = data.transactions && data.transactions.length > 0 ? 'inline-block' : 'none';
+
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
                     let summaryHtml = data.players_summary.map(p => {
