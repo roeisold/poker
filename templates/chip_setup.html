@@ -71,6 +71,7 @@
         const container = document.getElementById('chipsContainer');
         container.innerHTML = ALL_CHIPS.map(chip => {
             const escapedChip = escapeHTML(chip);
+            const escapedChipValue = escapeHTML(chipValues[chip]);
             return `
             <div class="col-6 col-md-3">
                 <div class="chip-card ${selectedChips.includes(chip) ? 'active' : ''}" id="card-${escapedChip}">
@@ -79,7 +80,7 @@
                     <div class="small text-muted text-uppercase mb-2">${escapedChip}</div>
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-dark border-secondary">$</span>
-                        <div class="form-control input-wrapper bg-dark text-white border-secondary" onclick="this.querySelector('input').focus()"><input type="number" class="text-center" id="val-${escapedChip}" value="${chipValues[chip]}" step="0.01" aria-label="${escapedChip} chip value"></div>
+                        <div class="form-control input-wrapper bg-dark text-white border-secondary" onclick="this.querySelector('input').focus()"><input type="number" class="text-center" id="val-${escapedChip}" value="${escapedChipValue}" step="0.01" aria-label="${escapedChip} chip value"></div>
                     </div>
                 </div>
             </div>
