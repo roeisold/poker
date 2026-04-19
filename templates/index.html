@@ -103,7 +103,10 @@
                         </div>
 
                         <!-- Transactions -->
-                        <h5 class="mb-3 mt-4">Transactions</h5>
+                        <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+                            <h5 class="mb-0">Transactions</h5>
+                            <button id="copyBtn" onclick="copyResults()" class="btn btn-sm btn-outline-success" style="display: none;" aria-live="polite">Copy Payouts</button>
+                        </div>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
 
                         <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
@@ -126,6 +129,29 @@
                 "'": '&#039;'
             };
             return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        function copyResults() {
+            if (!window.lastCalculationData || !window.lastCalculationData.transactions) return;
+
+            const text = window.lastCalculationData.transactions
+                .map(t => `• ${t.payer} pays ${t.receiver}: $${t.amount.toFixed(2)}`)
+                .join('\n');
+
+            const btn = document.getElementById('copyBtn');
+            const originalText = btn.innerText;
+
+            navigator.clipboard.writeText(text).then(() => {
+                btn.innerText = '✓ Copied!';
+                btn.classList.replace('btn-outline-success', 'btn-success');
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.classList.replace('btn-success', 'btn-outline-success');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard. Please copy manually.');
+            });
         }
 
         // Load from localStorage or use defaults
@@ -192,24 +218,30 @@
             form.reset();
             friendsList.innerHTML = '';
 
-            const createPlayer = (playerData = null) => {
+            const createPlayer = (playerData = null, shouldFocus = false) => {
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
                 const escapedName = escapeHTML(playerData?.name || '');
-                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
+                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" aria-label="Player name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" aria-label="Buy In amount" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player" title="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
 
                 selectedChips.forEach(chip => {
                     const chipCount = playerData?.chipCounts?.[chip] || '0';
                     const escapedChip = escapeHTML(chip);
+                    const chipVal = chipValues[chip]?.toFixed(2) || '0.00';
+                    const chipLabel = `${escapedChip.charAt(0).toUpperCase() + escapedChip.slice(1)} chip ($${chipVal})`;
                     html += `
                         <div class="chip-input-group">
                             <img src="/static/${escapedChip}-chip.jpg" class="chip-img-s" alt="${escapedChip} chip">
-                            <input type="number" class="chip-val-input ${escapedChip}-count" placeholder="0" min="0" value="${chipCount}" autocomplete="off" aria-label="${escapedChip} chip count">
+                            <input type="number" class="chip-val-input ${escapedChip}-count" placeholder="0" min="0" value="${chipCount}" autocomplete="off" aria-label="${chipLabel} count" title="${chipLabel}">
                         </div>`;
                 });
 
                 div.innerHTML = html + `</div>`;
                 friendsList.appendChild(div);
+
+                if (shouldFocus) {
+                    setTimeout(() => div.querySelector('.friend-name').focus(), 0);
+                }
 
                 // Add remove button handler
                 div.querySelector('.remove-player-btn').onclick = () => {
@@ -233,7 +265,7 @@
                 createPlayer();
             }
 
-            document.getElementById('addPlayerBtn').onclick = () => createPlayer();
+            document.getElementById('addPlayerBtn').onclick = () => createPlayer(null, true);
 
             form.onsubmit = async (e) => {
                 e.preventDefault();
@@ -314,6 +346,14 @@
                         `;
                     }
                     playersTable.innerHTML = summaryHtml;
+
+                    window.lastCalculationData = data;
+                    const copyBtn = document.getElementById('copyBtn');
+                    if (data.transactions && data.transactions.length > 0) {
+                        copyBtn.style.display = 'block';
+                    } else {
+                        copyBtn.style.display = 'none';
+                    }
 
                     // Populate transactions
                     const container = document.getElementById('transactionsList');
