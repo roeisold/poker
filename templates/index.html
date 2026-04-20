@@ -103,7 +103,12 @@
                         </div>
 
                         <!-- Transactions -->
-                        <h5 class="mb-3 mt-4">Transactions</h5>
+                        <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+                            <h5 class="mb-0">Transactions</h5>
+                            <button id="copyBtn" class="btn btn-sm btn-outline-success rounded-pill px-3" onclick="copyResults()" style="display: none;" aria-live="polite">
+                                📋 Copy Results
+                            </button>
+                        </div>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
 
                         <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
@@ -182,6 +187,32 @@
             if (confirm('This will clear all player data and results. Continue?')) {
                 localStorage.removeItem('playerData');
                 window.location.reload();
+            }
+        }
+
+        let lastCalculationData = null;
+
+        async function copyResults() {
+            if (!lastCalculationData || !lastCalculationData.transactions || !lastCalculationData.transactions.length) {
+                return;
+            }
+
+            const text = "Poker Settlement Plan:\n" +
+                lastCalculationData.transactions.map(t => `• ${t.payer} pays ${t.receiver}: $${t.amount.toFixed(2)}`).join('\n');
+
+            try {
+                await navigator.clipboard.writeText(text);
+                const btn = document.getElementById('copyBtn');
+                const originalContent = btn.innerHTML;
+                btn.innerHTML = '✓ Copied!';
+                btn.classList.replace('btn-outline-success', 'btn-success');
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.classList.replace('btn-success', 'btn-outline-success');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard. Please copy the results manually.');
             }
         }
 
@@ -288,6 +319,7 @@
                     });
 
                     const data = await res.json();
+                    lastCalculationData = data;
                 
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
@@ -325,6 +357,7 @@
                     `).join('') || '<div class="text-center text-muted">Everyone is even!</div>';
 
                     document.getElementById('resultsCard').style.display = 'block';
+                    document.getElementById('copyBtn').style.display = (data.transactions && data.transactions.length > 0) ? 'block' : 'none';
                     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
                 } catch (error) {
                     console.error('Error calculating debts:', error);
