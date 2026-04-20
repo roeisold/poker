@@ -36,7 +36,9 @@ def add_security_headers(response):
         "default-src 'self'; "
         "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
         "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
-        "img-src 'self' data:;"
+        "img-src 'self' data:; "
+        "base-uri 'self'; "
+        "object-src 'none';"
     )
 
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
