@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, jsonify
+import gzip
+import io
 
 app = Flask(__name__)
 
@@ -30,7 +32,7 @@ def save_chip_values():
     return jsonify({"success": True})
 
 @app.after_request
-def add_security_headers(response):
+def after_request_handler(response):
     # Implement CSP as per requirements
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
@@ -42,6 +44,21 @@ def add_security_headers(response):
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000'
+
+    # Gzip compression for HTML and JSON
+    if (response.mimetype in ['text/html', 'application/json'] and
+        'gzip' in request.accept_encodings and
+        not response.direct_passthrough and
+        len(response.data) > 500):
+
+        gzip_buffer = io.BytesIO()
+        with gzip.GzipFile(mode='wb', fileobj=gzip_buffer) as gzip_file:
+            gzip_file.write(response.data)
+
+        response.data = gzip_buffer.getvalue()
+        response.headers['Content-Encoding'] = 'gzip'
+        response.headers['Vary'] = 'Accept-Encoding'
+        response.headers['Content-Length'] = len(response.data)
 
     return response
 
