@@ -137,10 +137,12 @@
             const chipDisplay = document.getElementById('chipDisplay');
             chipDisplay.innerHTML = selectedChips.map(chip => {
                 const escapedChip = escapeHTML(chip);
+                // Sanitize values from localStorage before processing
+                const val = parseFloat(chipValues[chip]) || 0;
                 return `
-                <div class="chip-badge" aria-label="${escapedChip} chip value: ${chipValues[chip].toFixed(2)}">
+                <div class="chip-badge" aria-label="${escapedChip} chip value: ${val.toFixed(2)}">
                     <span class="dot" style="background-color: ${escapedChip === 'white' ? 'white' : escapedChip};" aria-hidden="true"></span>
-                    ${escapedChip.charAt(0).toUpperCase() + escapedChip.slice(1)}: <strong class="ms-1 text-success">${chipValues[chip].toFixed(2)}</strong>
+                    ${escapedChip.charAt(0).toUpperCase() + escapedChip.slice(1)}: <strong class="ms-1 text-success">${val.toFixed(2)}</strong>
                 </div>
             `}).join('');
         }
@@ -195,11 +197,14 @@
             const createPlayer = (playerData = null) => {
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
+                // Security: Always escape user-controlled data from localStorage before rendering
                 const escapedName = escapeHTML(playerData?.name || '');
-                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
+                const escapedBuyIn = escapeHTML(playerData?.buyIn || '');
+                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${escapedBuyIn}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
 
                 selectedChips.forEach(chip => {
-                    const chipCount = playerData?.chipCounts?.[chip] || '0';
+                    // Security: Escape counts retrieved from potentially malicious localStorage
+                    const chipCount = escapeHTML(playerData?.chipCounts?.[chip] || '0');
                     const escapedChip = escapeHTML(chip);
                     html += `
                         <div class="chip-input-group">

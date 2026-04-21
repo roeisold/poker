@@ -31,13 +31,22 @@ def save_chip_values():
 
 @app.after_request
 def add_security_headers(response):
-    # Implement CSP as per requirements
+    """Adds security headers to every response to provide defense-in-depth."""
+    # Implement Content Security Policy (CSP) to mitigate XSS and data injection attacks
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
         "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
         "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
         "img-src 'self' data:;"
     )
+
+    # Standard security headers for defense-in-depth:
+    # 1. Prevent browsers from MIME-sniffing the response away from the declared Content-Type
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    # 2. Prevent clickjacking by disallowing the page from being embedded in a frame on other sites
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    # 3. Control how much referrer information is included with requests
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
 
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
