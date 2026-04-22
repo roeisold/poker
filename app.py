@@ -1,3 +1,5 @@
+import gzip
+import io
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
@@ -42,6 +44,30 @@ def add_security_headers(response):
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000'
+
+    # Enable Gzip compression for text-based responses > 500 bytes
+    accept_encoding = request.headers.get('Accept-Encoding', '')
+    content_data = response.get_data()
+    if (
+        'gzip' in accept_encoding.lower() and
+        response.status_code == 200 and
+        len(content_data) > 500 and
+        response.mimetype in ['text/html', 'application/json', 'text/css', 'application/javascript']
+    ):
+        gzip_buffer = io.BytesIO()
+        with gzip.GzipFile(mode='wb', fileobj=gzip_buffer) as gz:
+            gz.write(content_data)
+        response.set_data(gzip_buffer.getvalue())
+        response.headers['Content-Encoding'] = 'gzip'
+        response.headers['Content-Length'] = len(response.get_data())
+
+        # Ensure proxies don't serve gzipped content to non-gzipping clients
+        vary = response.headers.get('Vary')
+        if vary:
+            if 'Accept-Encoding' not in vary:
+                response.headers['Vary'] = vary + ', Accept-Encoding'
+        else:
+            response.headers['Vary'] = 'Accept-Encoding'
 
     return response
 
