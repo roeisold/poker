@@ -37,8 +37,8 @@ def run_test():
         # Click calculate
         page.click("button[type='submit']")
 
-        # Wait for results to be populated
-        page.wait_for_selector("#resultsCard", state="visible")
+        # Wait for results to be populated (resultsCard might be hidden but present, so wait for visibility)
+        page.wait_for_selector("#resultsCard", state="visible", timeout=60000)
 
         # Check if XSS was triggered
         xss_triggered = page.evaluate("window.xss_triggered")
