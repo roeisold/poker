@@ -83,7 +83,12 @@
 
                 <div id="resultsCard" class="card bg-dark border-secondary mt-5" style="display:none">
                     <div class="card-body p-4">
-                        <h4 class="text-success mb-4">Settlement Plan</h4>
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4 class="text-success mb-0">Settlement Plan</h4>
+                            <button id="copyBtn" class="btn btn-sm btn-outline-success" style="display:none" aria-live="polite" title="Copy settlement plan to clipboard">
+                                Copy Plan
+                            </button>
+                        </div>
 
                         <!-- Player Summary Table -->
                         <h5 class="mb-3">Player Summary</h5>
@@ -183,6 +188,30 @@
                 localStorage.removeItem('playerData');
                 window.location.reload();
             }
+        }
+
+        // Copy settlement plan to clipboard
+        function copySettlementPlan() {
+            if (!window.lastCalculationData || !window.lastCalculationData.transactions) return;
+
+            const transactions = window.lastCalculationData.transactions;
+            let text = "";
+            if (transactions.length === 0) {
+                text = "Everyone is even!";
+            } else {
+                text = transactions.map(t => `• ${t.payer} pays ${t.receiver}: $${t.amount.toFixed(2)}`).join('\n');
+            }
+
+            navigator.clipboard.writeText(text).then(() => {
+                const copyBtn = document.getElementById('copyBtn');
+                const originalText = copyBtn.innerText;
+                copyBtn.innerText = '✓ Copied!';
+                setTimeout(() => {
+                    copyBtn.innerText = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -288,6 +317,7 @@
                     });
 
                     const data = await res.json();
+                    window.lastCalculationData = data;
                 
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
@@ -324,6 +354,8 @@
                         </div>
                     `).join('') || '<div class="text-center text-muted">Everyone is even!</div>';
 
+                    document.getElementById('copyBtn').onclick = copySettlementPlan;
+                    document.getElementById('copyBtn').style.display = 'block';
                     document.getElementById('resultsCard').style.display = 'block';
                     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
                 } catch (error) {
