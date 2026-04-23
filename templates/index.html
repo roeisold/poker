@@ -204,7 +204,7 @@
                     html += `
                         <div class="chip-input-group">
                             <img src="/static/${escapedChip}-chip.jpg" class="chip-img-s" alt="${escapedChip} chip">
-                            <input type="number" class="chip-val-input ${escapedChip}-count" placeholder="0" min="0" value="${chipCount}" autocomplete="off" aria-label="${escapedChip} chip count">
+                            <input type="number" class="chip-val-input ${escapedChip}-count" placeholder="0" min="0" value="${escapeHTML(chipCount)}" autocomplete="off" aria-label="${escapedChip} chip count">
                         </div>`;
                 });
 
