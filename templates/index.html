@@ -106,6 +106,9 @@
                         <h5 class="mb-3 mt-4">Transactions</h5>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
 
+                        <button id="copyBtn" onclick="copyToClipboard()" class="btn btn-outline-success w-100 mb-2" style="display: none;" aria-live="polite">
+                            📋 Copy Settlement Plan
+                        </button>
                         <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
                     </div>
                 </div>
@@ -183,6 +186,30 @@
                 localStorage.removeItem('playerData');
                 window.location.reload();
             }
+        }
+
+        function copyToClipboard() {
+            const data = window.lastCalculationData;
+            if (!data || !data.transactions) return;
+
+            let text = "Settlement Plan:\n";
+            if (data.transactions.length === 0) {
+                text += "Everyone is even!";
+            } else {
+                text += data.transactions.map(t => `• ${t.payer} pays ${t.receiver}: $${t.amount.toFixed(2)}`).join('\n');
+            }
+
+            navigator.clipboard.writeText(text).then(() => {
+                const copyBtn = document.getElementById('copyBtn');
+                const originalContent = '📋 Copy Settlement Plan';
+                copyBtn.innerHTML = '✓ Copied!';
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalContent;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard.');
+            });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -288,7 +315,9 @@
                     });
 
                     const data = await res.json();
-                
+                    window.lastCalculationData = data;
+                    document.getElementById('copyBtn').style.display = 'block';
+
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
                     let summaryHtml = data.players_summary.map(p => {
