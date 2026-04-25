@@ -39,6 +39,11 @@ def add_security_headers(response):
         "img-src 'self' data:;"
     )
 
+    # Standard security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000'
