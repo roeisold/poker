@@ -9,3 +9,7 @@
     - Initial load: ~5.2MB transferred.
     - Subsequent loads: 0MB transferred (loaded from disk/memory cache).
     - Reduces load time for returning visitors from seconds (depending on connection) to near-instant for images.
+
+## 2026-04-27 - [Image Optimization with WebP and Resizing]
+**Learning:** The application was serving ~5.2MB of 1000x1000 JPEG images for small chip icons. Converting them to 100x100 WebP (quality 85) reduced the total payload to ~32KB, a 99.4% reduction.
+**Action:** Always audit asset dimensions and formats; high-resolution images for small thumbnails are a significant performance bottleneck.
