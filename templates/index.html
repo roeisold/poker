@@ -106,6 +106,7 @@
                         <h5 class="mb-3 mt-4">Transactions</h5>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
 
+                        <button id="copyBtn" class="btn btn-primary w-100 mb-2" style="display: none;" aria-live="polite">📋 Copy Settlement Plan</button>
                         <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
                     </div>
                 </div>
@@ -177,11 +178,44 @@
             return null;
         }
 
+        // Store latest calculation result
+        window.lastCalculationData = null;
+
         // Clear all data
         function clearAllData() {
             if (confirm('This will clear all player data and results. Continue?')) {
                 localStorage.removeItem('playerData');
+                window.lastCalculationData = null;
                 window.location.reload();
+            }
+        }
+
+        async function copySettlementPlan() {
+            if (!window.lastCalculationData) return;
+
+            const btn = document.getElementById('copyBtn');
+            const originalText = '📋 Copy Settlement Plan';
+
+            let text = "Poker Settlement Plan:\n";
+            if (window.lastCalculationData.transactions.length === 0) {
+                text += "Everyone is even!";
+            } else {
+                text += window.lastCalculationData.transactions.map(t =>
+                    `• ${t.payer} pays ${t.receiver}: $${t.amount.toFixed(2)}`
+                ).join('\n');
+            }
+
+            try {
+                await navigator.clipboard.writeText(text);
+                btn.innerHTML = '✓ Copied!';
+                btn.classList.replace('btn-primary', 'btn-success');
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.replace('btn-success', 'btn-primary');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard.');
             }
         }
 
@@ -234,6 +268,7 @@
             }
 
             document.getElementById('addPlayerBtn').onclick = () => createPlayer();
+            document.getElementById('copyBtn').onclick = copySettlementPlan;
 
             form.onsubmit = async (e) => {
                 e.preventDefault();
@@ -288,6 +323,7 @@
                     });
 
                     const data = await res.json();
+                    window.lastCalculationData = data;
                 
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
@@ -324,6 +360,7 @@
                         </div>
                     `).join('') || '<div class="text-center text-muted">Everyone is even!</div>';
 
+                    document.getElementById('copyBtn').style.display = 'block';
                     document.getElementById('resultsCard').style.display = 'block';
                     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
                 } catch (error) {
