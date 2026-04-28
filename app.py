@@ -38,6 +38,9 @@ def add_security_headers(response):
         "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
         "img-src 'self' data:;"
     )
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
 
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
@@ -49,11 +52,27 @@ def add_security_headers(response):
 def calculate():
     try:
         data = request.json
+        if not data:
+            return jsonify({"error": "Missing request data"}), 400
+
         friends = data.get('friends', [])
+        if not isinstance(friends, list):
+            return jsonify({"error": "Invalid friends data"}), 400
+
+        # Security Enhancement: Limit number of players to prevent DoS
+        if len(friends) > 50:
+            return jsonify({"error": "Too many players (max 50)"}), 400
 
         # Get chip values from request (sent from frontend localStorage)
         chip_values = data.get('chip_values', DEFAULT_CHIP_VALUES)
         selected_chips = data.get('selected_chips', DEFAULT_SELECTED_CHIPS)
+        buy_ins = data.get('buy_ins', {})
+        chip_counts = data.get('chip_counts', {})
+
+        # Type validation for input data
+        if not isinstance(chip_values, dict) or not isinstance(selected_chips, list) or \
+           not isinstance(buy_ins, dict) or not isinstance(chip_counts, dict):
+            return jsonify({"error": "Invalid input data types"}), 400
 
         # Calculation logic
         original_balances = {}
@@ -61,10 +80,14 @@ def calculate():
         buy_ins_dict = {}
 
         for i, friend in enumerate(friends):
-            name, _ = friend
-            buy_in = data.get('buy_ins', {}).get(name, 0)
-            chip_counts = data.get('chip_counts', {}).get(name, {})
-            chip_total = sum(chip_counts.get(color, 0) * chip_values.get(color, 0)
+            if not isinstance(friend, (list, tuple)) or len(friend) < 1:
+                continue
+            name = friend[0]
+            buy_in = buy_ins.get(name, 0)
+            player_chip_counts = chip_counts.get(name, {})
+            if not isinstance(player_chip_counts, dict):
+                player_chip_counts = {}
+            chip_total = sum(player_chip_counts.get(color, 0) * chip_values.get(color, 0)
                           for color in selected_chips if color in chip_values)
 
             actual_balance = chip_total - buy_in

@@ -117,7 +117,7 @@
     <script>
         // Helper to escape HTML and prevent XSS
         function escapeHTML(str) {
-            if (!str) return '';
+            if (str === undefined || str === null) return '';
             const map = {
                 '&': '&amp;',
                 '<': '&lt;',
@@ -196,15 +196,17 @@
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
                 const escapedName = escapeHTML(playerData?.name || '');
-                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
+                const escapedBuyIn = escapeHTML(playerData?.buyIn || '');
+                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${escapedBuyIn}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
 
                 selectedChips.forEach(chip => {
                     const chipCount = playerData?.chipCounts?.[chip] || '0';
                     const escapedChip = escapeHTML(chip);
+                    const escapedChipCount = escapeHTML(chipCount);
                     html += `
                         <div class="chip-input-group">
                             <img src="/static/${escapedChip}-chip.jpg" class="chip-img-s" alt="${escapedChip} chip">
-                            <input type="number" class="chip-val-input ${escapedChip}-count" placeholder="0" min="0" value="${chipCount}" autocomplete="off" aria-label="${escapedChip} chip count">
+                            <input type="number" class="chip-val-input ${escapedChip}-count" placeholder="0" min="0" value="${escapedChipCount}" autocomplete="off" aria-label="${escapedChip} chip count">
                         </div>`;
                 });
 
