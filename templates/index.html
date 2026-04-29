@@ -203,7 +203,8 @@
                     const escapedChip = escapeHTML(chip);
                     html += `
                         <div class="chip-input-group">
-                            <img src="/static/${escapedChip}-chip.jpg" class="chip-img-s" alt="${escapedChip} chip">
+                            <!-- Optimized: Using 100x100 WebP images (~4KB) instead of 1000x1000 JPEGs (~400KB) -->
+                            <img src="/static/${escapedChip}-chip.webp" class="chip-img-s" alt="${escapedChip} chip">
                             <input type="number" class="chip-val-input ${escapedChip}-count" placeholder="0" min="0" value="${chipCount}" autocomplete="off" aria-label="${escapedChip} chip count">
                         </div>`;
                 });
