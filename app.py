@@ -39,6 +39,11 @@ def add_security_headers(response):
         "img-src 'self' data:;"
     )
 
+    # Additional security headers for defense-in-depth
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000'
@@ -50,6 +55,10 @@ def calculate():
     try:
         data = request.json
         friends = data.get('friends', [])
+
+        # Security check: Limit number of players to prevent DoS
+        if not isinstance(friends, list) or len(friends) > 50:
+            return jsonify({"error": "Invalid request: Maximum 50 players allowed"}), 400
 
         # Get chip values from request (sent from frontend localStorage)
         chip_values = data.get('chip_values', DEFAULT_CHIP_VALUES)
