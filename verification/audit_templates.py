@@ -33,7 +33,7 @@ def audit_file(filepath):
             print(f"  FAILED: t.receiver not escaped in {filepath}")
             return False
 
-        if 'playerData?.name' in content and 'escapeHTML(playerData?.name || \'\')' not in content:
+        if 'playerData?.name' in content and 'escapeHTML(playerData?.name)' not in content:
             print(f"  FAILED: playerData.name not escaped in {filepath}")
             return False
 
