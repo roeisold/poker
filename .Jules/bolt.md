@@ -9,3 +9,12 @@
     - Initial load: ~5.2MB transferred.
     - Subsequent loads: 0MB transferred (loaded from disk/memory cache).
     - Reduces load time for returning visitors from seconds (depending on connection) to near-instant for images.
+
+## 2025-05-16 - [Optimize Poker Chip Assets]
+**Learning:** The 13 poker chip images in `/static` were originally 1000x1000 JPEGs totaling ~5.2MB, which is overkill for 22px-50px display sizes. Resizing them to 100x100 and converting to WebP (quality 85) significantly reduces payload without visible quality loss.
+**Action:** Always check asset dimensions vs display size and use modern formats like WebP for photographic elements.
+
+**Performance Impact:**
+- **What:** Optimized 13 poker chip images (resizing to 100x100 and converting to WebP).
+- **Why:** Reduces initial page load payload by over 5.1MB.
+- **Measurement:** Total asset weight reduced from 5.2MB to ~32KB (99.4% reduction).
