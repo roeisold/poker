@@ -51,6 +51,12 @@ def calculate():
         data = request.json
         friends = data.get('friends', [])
 
+        if not isinstance(friends, list):
+            return jsonify({"error": "Invalid request: 'friends' must be a list"}), 400
+
+        if len(friends) > 50:
+            return jsonify({"error": "Invalid request: Maximum 50 players allowed"}), 400
+
         # Get chip values from request (sent from frontend localStorage)
         chip_values = data.get('chip_values', DEFAULT_CHIP_VALUES)
         selected_chips = data.get('selected_chips', DEFAULT_SELECTED_CHIPS)
