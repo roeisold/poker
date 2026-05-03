@@ -43,13 +43,23 @@ def add_security_headers(response):
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000'
 
+    # Defense-in-depth security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+
     return response
 
 @app.route('/calculate', methods=['POST'])
 def calculate():
     try:
         data = request.json
-        friends = data.get('friends', [])
+        if not isinstance(data, dict) or 'friends' not in data or not isinstance(data.get('friends'), list):
+            return jsonify({"error": "Invalid request: 'friends' must be a list"}), 400
+
+        friends = data.get('friends')
+        if len(friends) > 50:
+            return jsonify({"error": "Invalid request: Maximum 50 players allowed"}), 400
 
         # Get chip values from request (sent from frontend localStorage)
         chip_values = data.get('chip_values', DEFAULT_CHIP_VALUES)
