@@ -76,8 +76,8 @@
                     <div id="friendsList"></div>
 
                     <div class="d-flex justify-content-between mt-4">
-                        <button type="button" class="btn btn-outline-secondary" id="addPlayerBtn">+ Add Player</button>
-                        <button type="submit" class="btn btn-success px-4 fw-bold">Calculate Debts</button>
+                        <button type="button" class="btn btn-outline-secondary" id="addPlayerBtn" title="Add a new player">+ Add Player</button>
+                        <button type="submit" class="btn btn-success px-4 fw-bold" title="Calculate payout transactions">Calculate Debts</button>
                     </div>
                 </form>
 
@@ -106,7 +106,8 @@
                         <h5 class="mb-3 mt-4">Transactions</h5>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
 
-                        <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
+                        <button id="copySettlementBtn" onclick="copySettlementToClipboard()" class="btn btn-outline-success w-100 mb-2" title="Copy settlement plan to clipboard" aria-label="Copy Settlement Plan">📋 Copy Settlement Plan</button>
+                        <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100" title="Clear all players and results">Reset All Data</button>
                     </div>
                 </div>
             </div>
@@ -115,6 +116,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        window.lastCalculationData = null;
+
         // Helper to escape HTML and prevent XSS
         function escapeHTML(str) {
             if (!str) return '';
@@ -181,7 +184,33 @@
         function clearAllData() {
             if (confirm('This will clear all player data and results. Continue?')) {
                 localStorage.removeItem('playerData');
+                window.lastCalculationData = null;
                 window.location.reload();
+            }
+        }
+
+        async function copySettlementToClipboard() {
+            if (!window.lastCalculationData || !window.lastCalculationData.transactions) return;
+
+            const transactions = window.lastCalculationData.transactions;
+            let text = "Poker Settlement Plan:\n";
+
+            if (transactions.length === 0) {
+                text += "Everyone is even!";
+            } else {
+                text += transactions.map(t => `• ${t.payer} pays ${t.receiver}: $${t.amount.toFixed(2)}`).join('\n');
+            }
+
+            try {
+                await navigator.clipboard.writeText(text);
+                const btn = document.getElementById('copySettlementBtn');
+                btn.innerHTML = '✓ Copied!';
+                setTimeout(() => {
+                    btn.innerHTML = '📋 Copy Settlement Plan';
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard.');
             }
         }
 
@@ -196,7 +225,7 @@
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
                 const escapedName = escapeHTML(playerData?.name || '');
-                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
+                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}" aria-label="Player name"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}" aria-label="Buy in amount"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
 
                 selectedChips.forEach(chip => {
                     const chipCount = playerData?.chipCounts?.[chip] || '0';
@@ -288,7 +317,8 @@
                     });
 
                     const data = await res.json();
-                
+                    window.lastCalculationData = data;
+
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
                     let summaryHtml = data.players_summary.map(p => {
