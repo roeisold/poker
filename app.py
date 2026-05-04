@@ -38,6 +38,9 @@ def add_security_headers(response):
         "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
         "img-src 'self' data:;"
     )
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
 
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
@@ -49,7 +52,22 @@ def add_security_headers(response):
 def calculate():
     try:
         data = request.json
+        if not isinstance(data, dict):
+            return jsonify({"error": "Invalid request: Expected JSON object"}), 400
+
         friends = data.get('friends', [])
+        if not isinstance(friends, list):
+            return jsonify({"error": "Invalid request: 'friends' must be a list"}), 400
+        if len(friends) > 50:
+            return jsonify({"error": "Invalid request: Maximum 50 players allowed"}), 400
+
+        buy_ins = data.get('buy_ins', {})
+        if not isinstance(buy_ins, dict):
+            return jsonify({"error": "Invalid request: 'buy_ins' must be an object"}), 400
+
+        chip_counts = data.get('chip_counts', {})
+        if not isinstance(chip_counts, dict):
+            return jsonify({"error": "Invalid request: 'chip_counts' must be an object"}), 400
 
         # Get chip values from request (sent from frontend localStorage)
         chip_values = data.get('chip_values', DEFAULT_CHIP_VALUES)
@@ -62,9 +80,9 @@ def calculate():
 
         for i, friend in enumerate(friends):
             name, _ = friend
-            buy_in = data.get('buy_ins', {}).get(name, 0)
-            chip_counts = data.get('chip_counts', {}).get(name, {})
-            chip_total = sum(chip_counts.get(color, 0) * chip_values.get(color, 0)
+            buy_in = buy_ins.get(name, 0)
+            player_chip_counts = chip_counts.get(name, {})
+            chip_total = sum(player_chip_counts.get(color, 0) * chip_values.get(color, 0)
                           for color in selected_chips if color in chip_values)
 
             actual_balance = chip_total - buy_in
