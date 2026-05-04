@@ -9,3 +9,12 @@
     - Initial load: ~5.2MB transferred.
     - Subsequent loads: 0MB transferred (loaded from disk/memory cache).
     - Reduces load time for returning visitors from seconds (depending on connection) to near-instant for images.
+
+## 2026-05-04 - [Chip Image Optimization]
+**Learning:** Resizing high-resolution (1000x1000) JPEG assets to their maximum display size (200x200) and converting to WebP (85% quality) provides a massive (98%) reduction in static asset payload with negligible visual impact.
+**Action:** Always check dimensions of static assets against their actual usage in the UI to identify over-sized files that can be optimized.
+
+**Performance Impact:**
+- **What:** Resized 13 chip images from 1000x1000 to 200x200 and converted from JPG to WebP.
+- **Why:** The original images were 5.2MB total, far larger than needed for their small display size in the UI.
+- **Measurement:** Total static asset size reduced from 5.2MB to ~100KB (98% reduction).
