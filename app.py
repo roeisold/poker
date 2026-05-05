@@ -38,6 +38,9 @@ def add_security_headers(response):
         "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
         "img-src 'self' data:;"
     )
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
 
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
@@ -48,8 +51,14 @@ def add_security_headers(response):
 @app.route('/calculate', methods=['POST'])
 def calculate():
     try:
+        if not isinstance(request.json, dict):
+            return jsonify({"error": "Invalid request format"}), 400
+
         data = request.json
         friends = data.get('friends', [])
+
+        if not isinstance(friends, list) or len(friends) > 50:
+            return jsonify({"error": "Invalid request: Maximum 50 players allowed"}), 400
 
         # Get chip values from request (sent from frontend localStorage)
         chip_values = data.get('chip_values', DEFAULT_CHIP_VALUES)
