@@ -106,6 +106,7 @@
                         <h5 class="mb-3 mt-4">Transactions</h5>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
 
+                        <button id="copyPlanBtn" onclick="copySettlementPlan()" class="btn btn-success w-100 mb-2" title="Copy settlement plan to clipboard" aria-label="Copy settlement plan">📋 Copy Settlement Plan</button>
                         <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
                     </div>
                 </div>
@@ -181,7 +182,35 @@
         function clearAllData() {
             if (confirm('This will clear all player data and results. Continue?')) {
                 localStorage.removeItem('playerData');
+                window.lastCalculationData = null;
                 window.location.reload();
+            }
+        }
+
+        async function copySettlementPlan() {
+            const btn = document.getElementById('copyPlanBtn');
+            if (!window.lastCalculationData) return;
+
+            let text = "Poker Settlement Plan\n\n";
+            if (window.lastCalculationData.transactions.length === 0) {
+                text += "Everyone is even!";
+            } else {
+                text += window.lastCalculationData.transactions.map(t =>
+                    `• ${t.payer} pays ${t.receiver}: $${t.amount.toFixed(2)}`
+                ).join('\n');
+            }
+
+            try {
+                await navigator.clipboard.writeText(text);
+                btn.innerHTML = '✓ Copied!';
+                btn.classList.replace('btn-success', 'btn-outline-success');
+                setTimeout(() => {
+                    btn.innerHTML = '📋 Copy Settlement Plan';
+                    btn.classList.replace('btn-outline-success', 'btn-success');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard');
             }
         }
 
@@ -288,6 +317,7 @@
                     });
 
                     const data = await res.json();
+                    window.lastCalculationData = data;
                 
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
