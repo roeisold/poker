@@ -1,3 +1,5 @@
+import gzip
+import io
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
@@ -9,28 +11,36 @@ DEFAULT_CHIP_VALUES = {
 }
 DEFAULT_SELECTED_CHIPS = ["white", "red", "green", "blue", "black"]
 
+
 @app.route('/', methods=['GET'])
 def index():
     # Defaults will be overridden by localStorage on the frontend
-    return render_template('index.html',
-                          chip_values=DEFAULT_CHIP_VALUES,
-                          selected_chips=DEFAULT_SELECTED_CHIPS)
+    return render_template(
+        'index.html',
+        chip_values=DEFAULT_CHIP_VALUES,
+        selected_chips=DEFAULT_SELECTED_CHIPS
+    )
+
 
 @app.route('/chip-setup', methods=['GET'])
 def chip_setup():
     # Defaults will be overridden by localStorage on the frontend
-    return render_template('chip_setup.html',
-                          chip_values=DEFAULT_CHIP_VALUES,
-                          selected_chips=DEFAULT_SELECTED_CHIPS,
-                          all_chips=list(DEFAULT_CHIP_VALUES.keys()))
+    return render_template(
+        'chip_setup.html',
+        chip_values=DEFAULT_CHIP_VALUES,
+        selected_chips=DEFAULT_SELECTED_CHIPS,
+        all_chips=list(DEFAULT_CHIP_VALUES.keys())
+    )
+
 
 @app.route('/save-chip-values', methods=['POST'])
 def save_chip_values():
     # Frontend handles persistence via localStorage
     return jsonify({"success": True})
 
+
 @app.after_request
-def add_security_headers(response):
+def after_request_handler(response):
     # Implement CSP as per requirements
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
@@ -42,8 +52,36 @@ def add_security_headers(response):
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000'
+        return response
+
+    # Gzip compression for text/json responses
+    accept_encoding = request.headers.get('Accept-Encoding', '').lower()
+    if 'gzip' not in accept_encoding or \
+       response.status_code not in range(200, 300):
+        return response
+
+    content_type = response.content_type or ''
+    is_text = 'text/html' in content_type
+    is_json = 'application/json' in content_type
+    if not is_text and not is_json:
+        return response
+
+    response_data = response.get_data()
+    if len(response_data) < 500:
+        return response
+
+    # Compress the response data
+    gzip_buffer = io.BytesIO()
+    with gzip.GzipFile(mode='wb', fileobj=gzip_buffer) as gzip_file:
+        gzip_file.write(response_data)
+
+    response.set_data(gzip_buffer.getvalue())
+    response.headers['Content-Encoding'] = 'gzip'
+    response.headers['Content-Length'] = len(response.get_data())
+    response.headers['Vary'] = 'Accept-Encoding'
 
     return response
+
 
 @app.route('/calculate', methods=['POST'])
 def calculate():
@@ -64,8 +102,10 @@ def calculate():
             name, _ = friend
             buy_in = data.get('buy_ins', {}).get(name, 0)
             chip_counts = data.get('chip_counts', {}).get(name, {})
-            chip_total = sum(chip_counts.get(color, 0) * chip_values.get(color, 0)
-                          for color in selected_chips if color in chip_values)
+            chip_total = sum(
+                chip_counts.get(color, 0) * chip_values.get(color, 0)
+                for color in selected_chips if color in chip_values
+            )
 
             actual_balance = chip_total - buy_in
             original_balances[name] = actual_balance
@@ -100,8 +140,10 @@ def calculate():
                 })
             debtors[i] = (debtors[i][0], debtors[i][1] - amt)
             creditors[j] = (creditors[j][0], creditors[j][1] - amt)
-            if debtors[i][1] < 0.01: i += 1
-            if creditors[j][1] < 0.01: j += 1
+            if debtors[i][1] < 0.01:
+                i += 1
+            if creditors[j][1] < 0.01:
+                j += 1
 
         # Create detailed player summary
         players_summary = []
@@ -123,6 +165,7 @@ def calculate():
     except Exception:
         # Generic error message to avoid information leakage
         return jsonify({"error": "An error occurred during calculation"}), 400
+
 
 if __name__ == "__main__":
     # Disable debug mode for production security
