@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 
+
 app = Flask(__name__)
 
 DEFAULT_CHIP_VALUES = {
@@ -9,25 +10,33 @@ DEFAULT_CHIP_VALUES = {
 }
 DEFAULT_SELECTED_CHIPS = ["white", "red", "green", "blue", "black"]
 
+
 @app.route('/', methods=['GET'])
 def index():
     # Defaults will be overridden by localStorage on the frontend
-    return render_template('index.html',
-                          chip_values=DEFAULT_CHIP_VALUES,
-                          selected_chips=DEFAULT_SELECTED_CHIPS)
+    return render_template(
+        'index.html',
+        chip_values=DEFAULT_CHIP_VALUES,
+        selected_chips=DEFAULT_SELECTED_CHIPS
+    )
+
 
 @app.route('/chip-setup', methods=['GET'])
 def chip_setup():
     # Defaults will be overridden by localStorage on the frontend
-    return render_template('chip_setup.html',
-                          chip_values=DEFAULT_CHIP_VALUES,
-                          selected_chips=DEFAULT_SELECTED_CHIPS,
-                          all_chips=list(DEFAULT_CHIP_VALUES.keys()))
+    return render_template(
+        'chip_setup.html',
+        chip_values=DEFAULT_CHIP_VALUES,
+        selected_chips=DEFAULT_SELECTED_CHIPS,
+        all_chips=list(DEFAULT_CHIP_VALUES.keys())
+    )
+
 
 @app.route('/save-chip-values', methods=['POST'])
 def save_chip_values():
     # Frontend handles persistence via localStorage
     return jsonify({"success": True})
+
 
 @app.after_request
 def add_security_headers(response):
@@ -38,6 +47,9 @@ def add_security_headers(response):
         "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
         "img-src 'self' data:;"
     )
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
 
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
@@ -45,11 +57,26 @@ def add_security_headers(response):
 
     return response
 
+
 @app.route('/calculate', methods=['POST'])
 def calculate():
     try:
         data = request.json
+        if not isinstance(data, dict):
+            return jsonify({
+                "error": "Invalid request: Data must be a dictionary"
+            }), 400
+
         friends = data.get('friends', [])
+        if not isinstance(friends, list):
+            return jsonify({
+                "error": "Invalid request: 'friends' must be a list"
+            }), 400
+
+        if len(friends) > 50:
+            return jsonify({
+                "error": "Invalid request: Maximum 50 players allowed"
+            }), 400
 
         # Get chip values from request (sent from frontend localStorage)
         chip_values = data.get('chip_values', DEFAULT_CHIP_VALUES)
@@ -64,8 +91,10 @@ def calculate():
             name, _ = friend
             buy_in = data.get('buy_ins', {}).get(name, 0)
             chip_counts = data.get('chip_counts', {}).get(name, {})
-            chip_total = sum(chip_counts.get(color, 0) * chip_values.get(color, 0)
-                          for color in selected_chips if color in chip_values)
+            chip_total = sum(
+                chip_counts.get(color, 0) * chip_values.get(color, 0)
+                for color in selected_chips if color in chip_values
+            )
 
             actual_balance = chip_total - buy_in
             original_balances[name] = actual_balance
@@ -100,8 +129,10 @@ def calculate():
                 })
             debtors[i] = (debtors[i][0], debtors[i][1] - amt)
             creditors[j] = (creditors[j][0], creditors[j][1] - amt)
-            if debtors[i][1] < 0.01: i += 1
-            if creditors[j][1] < 0.01: j += 1
+            if debtors[i][1] < 0.01:
+                i += 1
+            if creditors[j][1] < 0.01:
+                j += 1
 
         # Create detailed player summary
         players_summary = []
@@ -123,6 +154,7 @@ def calculate():
     except Exception:
         # Generic error message to avoid information leakage
         return jsonify({"error": "An error occurred during calculation"}), 400
+
 
 if __name__ == "__main__":
     # Disable debug mode for production security
