@@ -9,25 +9,33 @@ DEFAULT_CHIP_VALUES = {
 }
 DEFAULT_SELECTED_CHIPS = ["white", "red", "green", "blue", "black"]
 
+
 @app.route('/', methods=['GET'])
 def index():
     # Defaults will be overridden by localStorage on the frontend
-    return render_template('index.html',
-                          chip_values=DEFAULT_CHIP_VALUES,
-                          selected_chips=DEFAULT_SELECTED_CHIPS)
+    return render_template(
+        'index.html',
+        chip_values=DEFAULT_CHIP_VALUES,
+        selected_chips=DEFAULT_SELECTED_CHIPS
+    )
+
 
 @app.route('/chip-setup', methods=['GET'])
 def chip_setup():
     # Defaults will be overridden by localStorage on the frontend
-    return render_template('chip_setup.html',
-                          chip_values=DEFAULT_CHIP_VALUES,
-                          selected_chips=DEFAULT_SELECTED_CHIPS,
-                          all_chips=list(DEFAULT_CHIP_VALUES.keys()))
+    return render_template(
+        'chip_setup.html',
+        chip_values=DEFAULT_CHIP_VALUES,
+        selected_chips=DEFAULT_SELECTED_CHIPS,
+        all_chips=list(DEFAULT_CHIP_VALUES.keys())
+    )
+
 
 @app.route('/save-chip-values', methods=['POST'])
 def save_chip_values():
     # Frontend handles persistence via localStorage
     return jsonify({"success": True})
+
 
 @app.after_request
 def add_security_headers(response):
@@ -45,15 +53,51 @@ def add_security_headers(response):
 
     return response
 
+
 @app.route('/calculate', methods=['POST'])
 def calculate():
     try:
         data = request.json
+        if not isinstance(data, dict):
+            return jsonify({
+                "error": "Invalid request: Expected JSON object"
+            }), 400
+
         friends = data.get('friends', [])
+        if not isinstance(friends, list):
+            return jsonify({
+                "error": "Invalid request: 'friends' must be a list"
+            }), 400
+
+        if len(friends) > 50:
+            return jsonify({
+                "error": "Invalid request: Maximum 50 players allowed"
+            }), 400
+
+        buy_ins_data = data.get('buy_ins', {})
+        if not isinstance(buy_ins_data, dict):
+            return jsonify({
+                "error": "Invalid request: 'buy_ins' must be an object"
+            }), 400
+
+        chip_counts_data = data.get('chip_counts', {})
+        if not isinstance(chip_counts_data, dict):
+            return jsonify({
+                "error": "Invalid request: 'chip_counts' must be an object"
+            }), 400
 
         # Get chip values from request (sent from frontend localStorage)
         chip_values = data.get('chip_values', DEFAULT_CHIP_VALUES)
+        if not isinstance(chip_values, dict):
+            return jsonify({
+                "error": "Invalid request: 'chip_values' must be an object"
+            }), 400
+
         selected_chips = data.get('selected_chips', DEFAULT_SELECTED_CHIPS)
+        if not isinstance(selected_chips, list):
+            return jsonify({
+                "error": "Invalid request: 'selected_chips' must be a list"
+            }), 400
 
         # Calculation logic
         original_balances = {}
@@ -61,11 +105,18 @@ def calculate():
         buy_ins_dict = {}
 
         for i, friend in enumerate(friends):
-            name, _ = friend
-            buy_in = data.get('buy_ins', {}).get(name, 0)
-            chip_counts = data.get('chip_counts', {}).get(name, {})
-            chip_total = sum(chip_counts.get(color, 0) * chip_values.get(color, 0)
-                          for color in selected_chips if color in chip_values)
+            if not isinstance(friend, (list, tuple)) or len(friend) < 1:
+                continue
+            name = friend[0]
+            buy_in = buy_ins_data.get(name, 0)
+            player_chips = chip_counts_data.get(name, {})
+            if not isinstance(player_chips, dict):
+                player_chips = {}
+
+            chip_total = sum(
+                player_chips.get(color, 0) * chip_values.get(color, 0)
+                for color in selected_chips if color in chip_values
+            )
 
             actual_balance = chip_total - buy_in
             original_balances[name] = actual_balance
@@ -100,8 +151,10 @@ def calculate():
                 })
             debtors[i] = (debtors[i][0], debtors[i][1] - amt)
             creditors[j] = (creditors[j][0], creditors[j][1] - amt)
-            if debtors[i][1] < 0.01: i += 1
-            if creditors[j][1] < 0.01: j += 1
+            if debtors[i][1] < 0.01:
+                i += 1
+            if creditors[j][1] < 0.01:
+                j += 1
 
         # Create detailed player summary
         players_summary = []
@@ -123,6 +176,7 @@ def calculate():
     except Exception:
         # Generic error message to avoid information leakage
         return jsonify({"error": "An error occurred during calculation"}), 400
+
 
 if __name__ == "__main__":
     # Disable debug mode for production security
