@@ -9,3 +9,7 @@
     - Initial load: ~5.2MB transferred.
     - Subsequent loads: 0MB transferred (loaded from disk/memory cache).
     - Reduces load time for returning visitors from seconds (depending on connection) to near-instant for images.
+
+## 2026-05-08 - [Asset Optimization: JPEG to WebP Conversion]
+**Learning:** Serving high-resolution (1000x1000) source images for small UI icons (22px-50px) is a significant performance bottleneck. Converting to WebP and resizing to 200x200 drastically reduces payload size without visible quality loss.
+**Action:** Always audit static assets for size and format; prefer WebP and appropriate dimensions for UI elements.
