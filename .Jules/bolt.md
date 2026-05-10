@@ -9,3 +9,15 @@
     - Initial load: ~5.2MB transferred.
     - Subsequent loads: 0MB transferred (loaded from disk/memory cache).
     - Reduces load time for returning visitors from seconds (depending on connection) to near-instant for images.
+
+## 2026-05-10 - [Chip Asset Optimization]
+**Learning:** Serving 1000x1000 JPGs for small UI icons (22px-50px) is a major performance bottleneck. Resizing to 200x200 and using WebP is the established codebase pattern for image assets.
+**Action:** Always optimize source images to match their maximum display size and use modern formats like WebP.
+
+**Performance Impact:**
+- **What:** Resized chip images from 1000x1000 to 200x200 and converted from JPG to WebP (quality 85).
+- **Why:** The total size of chip assets was ~5.2MB, causing slow initial page loads and high bandwidth usage.
+- **Measurement:**
+    - Original JPG assets: ~5.2MB total.
+    - Optimized WebP assets: ~70KB total.
+    - Result: ~98.7% reduction in asset size, significantly improving page load speed.
