@@ -76,8 +76,8 @@
                     <div id="friendsList"></div>
 
                     <div class="d-flex justify-content-between mt-4">
-                        <button type="button" class="btn btn-outline-secondary" id="addPlayerBtn">+ Add Player</button>
-                        <button type="submit" class="btn btn-success px-4 fw-bold">Calculate Debts</button>
+                        <button type="button" class="btn btn-outline-secondary" id="addPlayerBtn" title="Add a new player row">+ Add Player</button>
+                        <button type="submit" class="btn btn-success px-4 fw-bold" title="Calculate payout transactions">Calculate Debts</button>
                     </div>
                 </form>
 
@@ -103,10 +103,13 @@
                         </div>
 
                         <!-- Transactions -->
-                        <h5 class="mb-3 mt-4">Transactions</h5>
+                        <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+                            <h5 class="mb-0">Transactions</h5>
+                            <button id="copyBtn" onclick="copyResults()" class="btn btn-sm btn-outline-success" title="Copy Settlement Plan" style="display: none;">📋 Copy Settlement Plan</button>
+                        </div>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
 
-                        <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
+                        <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100" title="Reset All Data">Reset All Data</button>
                     </div>
                 </div>
             </div>
@@ -131,6 +134,27 @@
         // Load from localStorage or use defaults
         let chipValues = JSON.parse(localStorage.getItem('chipValues')) || {{ chip_values|tojson }};
         let selectedChips = JSON.parse(localStorage.getItem('selectedChips')) || {{ selected_chips|tojson }};
+
+        let lastCalculationData = null;
+
+        function copyResults() {
+            if (!lastCalculationData || !lastCalculationData.transactions.length) return;
+
+            const text = lastCalculationData.transactions
+                .map(t => `${t.payer} pays ${t.receiver} ${t.amount.toFixed(2)}`)
+                .join('\n');
+
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyBtn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✓ Copied!';
+                btn.className = 'btn btn-sm btn-success';
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.className = 'btn btn-sm btn-outline-success';
+                }, 2000);
+            });
+        }
 
         // Update chip display in header
         function updateChipDisplay() {
@@ -196,7 +220,7 @@
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
                 const escapedName = escapeHTML(playerData?.name || '');
-                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
+                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" aria-label="Player name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" aria-label="Buy in amount" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player" title="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
 
                 selectedChips.forEach(chip => {
                     const chipCount = playerData?.chipCounts?.[chip] || '0';
@@ -288,6 +312,7 @@
                     });
 
                     const data = await res.json();
+                    lastCalculationData = data;
                 
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
@@ -325,6 +350,7 @@
                     `).join('') || '<div class="text-center text-muted">Everyone is even!</div>';
 
                     document.getElementById('resultsCard').style.display = 'block';
+                    document.getElementById('copyBtn').style.display = data.transactions.length > 0 ? 'block' : 'none';
                     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
                 } catch (error) {
                     console.error('Error calculating debts:', error);
