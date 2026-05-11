@@ -106,6 +106,7 @@
                         <h5 class="mb-3 mt-4">Transactions</h5>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
 
+                        <button id="copyBtn" onclick="copySettlementPlan()" class="btn btn-sm btn-outline-success w-100 mb-2" title="Copy settlement plan to clipboard" aria-label="Copy settlement plan to clipboard" style="display:none">📋 Copy Settlement Plan</button>
                         <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
                     </div>
                 </div>
@@ -183,6 +184,28 @@
                 localStorage.removeItem('playerData');
                 window.location.reload();
             }
+        }
+
+        function copySettlementPlan() {
+            if (!window.lastCalculationData || !window.lastCalculationData.transactions) return;
+
+            const text = window.lastCalculationData.transactions.length > 0
+                ? window.lastCalculationData.transactions.map(t => `${t.payer} pays ${t.receiver} ${t.amount.toFixed(2)}`).join('\n')
+                : "Everyone is even!";
+
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyBtn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✓ Copied!';
+                btn.classList.replace('btn-outline-success', 'btn-success');
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.replace('btn-success', 'btn-outline-success');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard');
+            });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -288,6 +311,7 @@
                     });
 
                     const data = await res.json();
+                    window.lastCalculationData = data;
                 
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
@@ -325,6 +349,7 @@
                     `).join('') || '<div class="text-center text-muted">Everyone is even!</div>';
 
                     document.getElementById('resultsCard').style.display = 'block';
+                    document.getElementById('copyBtn').style.display = 'block';
                     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
                 } catch (error) {
                     console.error('Error calculating debts:', error);
