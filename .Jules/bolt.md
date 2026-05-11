@@ -9,3 +9,14 @@
     - Initial load: ~5.2MB transferred.
     - Subsequent loads: 0MB transferred (loaded from disk/memory cache).
     - Reduces load time for returning visitors from seconds (depending on connection) to near-instant for images.
+
+## 2026-05-11 - [Image Asset Optimization]
+**Learning:** Serving high-resolution (1000x1000) source images for small UI icons (22px-50px) is a significant performance bottleneck. WebP provides superior compression over JPG for these assets.
+**Action:** Always resize source images to their maximum intended display size and use WebP format with ~85% quality for a balance of speed and visual fidelity.
+
+**Performance Impact:**
+- **What:** Optimized 13 chip images by resizing to 200x200 and converting to WebP.
+- **Why:** Reduced total static asset size from 5.2MB to 104KB.
+- **Measurement:**
+    - Size reduction: ~98%.
+    - Load time: Significant reduction in initial page load time and bandwidth usage.
