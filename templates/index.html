@@ -76,8 +76,8 @@
                     <div id="friendsList"></div>
 
                     <div class="d-flex justify-content-between mt-4">
-                        <button type="button" class="btn btn-outline-secondary" id="addPlayerBtn">+ Add Player</button>
-                        <button type="submit" class="btn btn-success px-4 fw-bold">Calculate Debts</button>
+                        <button type="button" class="btn btn-outline-secondary" id="addPlayerBtn" title="Add a new player row" aria-label="Add a new player row">+ Add Player</button>
+                        <button type="submit" class="btn btn-success px-4 fw-bold" title="Calculate payout transactions" aria-label="Calculate payout transactions">Calculate Debts</button>
                     </div>
                 </form>
 
@@ -103,10 +103,15 @@
                         </div>
 
                         <!-- Transactions -->
-                        <h5 class="mb-3 mt-4">Transactions</h5>
+                        <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+                            <h5 class="mb-0">Transactions</h5>
+                            <button type="button" id="copyBtn" class="btn btn-sm btn-outline-success" style="display:none" title="Copy Settlement Plan" aria-label="Copy Settlement Plan">
+                                📋 Copy Settlement Plan
+                            </button>
+                        </div>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
 
-                        <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
+                        <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100" title="Clear all data and start over" aria-label="Clear all data and start over">Reset All Data</button>
                     </div>
                 </div>
             </div>
@@ -117,7 +122,7 @@
     <script>
         // Helper to escape HTML and prevent XSS
         function escapeHTML(str) {
-            if (!str) return '';
+            const val = str ?? '';
             const map = {
                 '&': '&amp;',
                 '<': '&lt;',
@@ -125,7 +130,7 @@
                 '"': '&quot;',
                 "'": '&#039;'
             };
-            return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
+            return String(val).replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
         // Load from localStorage or use defaults
@@ -146,6 +151,44 @@
         }
 
         updateChipDisplay();
+
+        // Copy settlement plan to clipboard
+        async function copyToClipboard() {
+            if (!window.lastCalculationData) return;
+
+            const btn = document.getElementById('copyBtn');
+            const originalText = btn.innerHTML;
+            const data = window.lastCalculationData;
+
+            let text = "POKER SETTLEMENT PLAN\n";
+            text += "======================\n\n";
+
+            if (data.transactions && data.transactions.length > 0) {
+                data.transactions.forEach(t => {
+                    text += `${t.payer} pays ${t.receiver}: ${t.amount.toFixed(2)}\n`;
+                });
+            } else {
+                text += "Everyone is even!\n";
+            }
+
+            try {
+                await navigator.clipboard.writeText(text);
+                btn.innerHTML = "✓ Copied!";
+                btn.classList.remove('btn-outline-success');
+                btn.classList.add('btn-success');
+
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-success');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard');
+            }
+        }
+
+        document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
 
         // Save player data to localStorage
         function savePlayerData() {
@@ -181,6 +224,8 @@
         function clearAllData() {
             if (confirm('This will clear all player data and results. Continue?')) {
                 localStorage.removeItem('playerData');
+                window.lastCalculationData = null;
+                document.getElementById('copyBtn').style.display = 'none';
                 window.location.reload();
             }
         }
@@ -196,7 +241,7 @@
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
                 const escapedName = escapeHTML(playerData?.name || '');
-                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
+                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" aria-label="Player name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" aria-label="Buy in amount" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" title="Remove player" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
 
                 selectedChips.forEach(chip => {
                     const chipCount = playerData?.chipCounts?.[chip] || '0';
@@ -288,6 +333,8 @@
                     });
 
                     const data = await res.json();
+                    window.lastCalculationData = data;
+                    document.getElementById('copyBtn').style.display = 'block';
                 
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
