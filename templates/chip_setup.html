@@ -48,7 +48,7 @@
     <script>
         // Helper to escape HTML and prevent XSS
         function escapeHTML(str) {
-            if (!str) return '';
+            const val = str ?? '';
             const map = {
                 '&': '&amp;',
                 '<': '&lt;',
@@ -56,7 +56,7 @@
                 '"': '&quot;',
                 "'": '&#039;'
             };
-            return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
+            return String(val).replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
         const DEFAULT_CHIP_VALUES = {{ chip_values|tojson }};
