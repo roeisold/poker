@@ -64,7 +64,7 @@
             <div class="chip-display" id="chipDisplay"></div>
 
             <div class="mt-3">
-                <a href="/chip-setup" class="btn btn-sm btn-outline-light rounded-pill">⚙️ Setup Chip Values</a>
+                <a href="/chip-setup" class="btn btn-sm btn-outline-light rounded-pill" title="Setup chip values" aria-label="Setup chip values">⚙️ Setup Chip Values</a>
             </div>
         </div>
     </div>
@@ -76,8 +76,8 @@
                     <div id="friendsList"></div>
 
                     <div class="d-flex justify-content-between mt-4">
-                        <button type="button" class="btn btn-outline-secondary" id="addPlayerBtn">+ Add Player</button>
-                        <button type="submit" class="btn btn-success px-4 fw-bold">Calculate Debts</button>
+                        <button type="button" class="btn btn-outline-secondary" id="addPlayerBtn" title="Add a new player row" aria-label="Add a new player row">+ Add Player</button>
+                        <button type="submit" class="btn btn-success px-4 fw-bold" title="Calculate payout transactions" aria-label="Calculate payout transactions">Calculate Debts</button>
                     </div>
                 </form>
 
@@ -106,7 +106,8 @@
                         <h5 class="mb-3 mt-4">Transactions</h5>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
 
-                        <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
+                        <button id="copyBtn" onclick="copySettlementPlan()" class="btn btn-outline-success btn-sm mt-3 w-100" style="display:none" title="Copy settlement plan to clipboard" aria-label="Copy settlement plan to clipboard">📋 Copy Settlement Plan</button>
+                        <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100 mt-3" title="Clear all data and reset form" aria-label="Clear all data and reset form">Reset All Data</button>
                     </div>
                 </div>
             </div>
@@ -117,7 +118,7 @@
     <script>
         // Helper to escape HTML and prevent XSS
         function escapeHTML(str) {
-            if (!str) return '';
+            const val = str ?? '';
             const map = {
                 '&': '&amp;',
                 '<': '&lt;',
@@ -125,7 +126,7 @@
                 '"': '&quot;',
                 "'": '&#039;'
             };
-            return String(str).replace(/[&<>"']/g, function(m) { return map[m]; });
+            return String(val).replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
         // Load from localStorage or use defaults
@@ -146,6 +147,28 @@
         }
 
         updateChipDisplay();
+
+        function copySettlementPlan() {
+            if (!window.lastCalculationData || !window.lastCalculationData.transactions) return;
+
+            const transactions = window.lastCalculationData.transactions;
+            if (transactions.length === 0) {
+                navigator.clipboard.writeText("Everyone is even!");
+            } else {
+                const text = transactions.map(t => `${t.payer} pays ${t.receiver} ${t.amount.toFixed(2)}`).join('\n');
+                navigator.clipboard.writeText(text);
+            }
+
+            const btn = document.getElementById('copyBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '✓ Copied!';
+            btn.classList.replace('btn-outline-success', 'btn-success');
+
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.replace('btn-success', 'btn-outline-success');
+            }, 2000);
+        }
 
         // Save player data to localStorage
         function savePlayerData() {
@@ -181,6 +204,9 @@
         function clearAllData() {
             if (confirm('This will clear all player data and results. Continue?')) {
                 localStorage.removeItem('playerData');
+                window.lastCalculationData = null;
+                const copyBtn = document.getElementById('copyBtn');
+                if (copyBtn) copyBtn.style.display = 'none';
                 window.location.reload();
             }
         }
@@ -196,7 +222,7 @@
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
                 const escapedName = escapeHTML(playerData?.name || '');
-                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
+                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}" aria-label="Player name"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}" aria-label="Buy in amount"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" title="Remove player" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
 
                 selectedChips.forEach(chip => {
                     const chipCount = playerData?.chipCounts?.[chip] || '0';
@@ -288,6 +314,7 @@
                     });
 
                     const data = await res.json();
+                    window.lastCalculationData = data;
                 
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
@@ -325,6 +352,8 @@
                     `).join('') || '<div class="text-center text-muted">Everyone is even!</div>';
 
                     document.getElementById('resultsCard').style.display = 'block';
+                    const copyBtn = document.getElementById('copyBtn');
+                    if (copyBtn) copyBtn.style.display = 'block';
                     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
                 } catch (error) {
                     console.error('Error calculating debts:', error);
