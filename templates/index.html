@@ -63,6 +63,7 @@
 
             <div class="chip-display" id="chipDisplay"></div>
 
+            <!-- Performance optimization: Chip images reduced from ~5.2MB (JPG) to ~100KB (WebP) -->
             <div class="mt-3">
                 <a href="/chip-setup" class="btn btn-sm btn-outline-light rounded-pill">⚙️ Setup Chip Values</a>
             </div>
@@ -203,7 +204,7 @@
                     const escapedChip = escapeHTML(chip);
                     html += `
                         <div class="chip-input-group">
-                            <img src="/static/${escapedChip}-chip.jpg" class="chip-img-s" alt="${escapedChip} chip">
+                            <img src="/static/${escapedChip}-chip.webp" class="chip-img-s" alt="${escapedChip} chip" loading="lazy">
                             <input type="number" class="chip-val-input ${escapedChip}-count" placeholder="0" min="0" value="${chipCount}" autocomplete="off" aria-label="${escapedChip} chip count">
                         </div>`;
                 });

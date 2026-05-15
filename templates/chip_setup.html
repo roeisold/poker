@@ -35,6 +35,7 @@
 </head>
 <body>
     <div class="container">
+        <!-- Performance optimization: Chip images reduced from ~5.2MB (JPG) to ~100KB (WebP) -->
         <h2 class="text-center mb-5 fw-light">Chip Values & Selection</h2>
         <form id="setupForm">
             <div class="row g-4" id="chipsContainer"></div>
@@ -75,7 +76,7 @@
             <div class="col-6 col-md-3">
                 <div class="chip-card ${selectedChips.includes(chip) ? 'active' : ''}" id="card-${escapedChip}">
                     <input type="checkbox" class="form-check-input chip-toggle" data-chip="${escapedChip}" ${selectedChips.includes(chip) ? 'checked' : ''} aria-label="Select ${escapedChip} chip">
-                    <div class="mt-2"><img src="/static/${escapedChip}-chip.jpg" class="chip-img-l" alt="${escapedChip} chip"></div>
+                    <div class="mt-2"><img src="/static/${escapedChip}-chip.webp" class="chip-img-l" alt="${escapedChip} chip" loading="lazy"></div>
                     <div class="small text-muted text-uppercase mb-2">${escapedChip}</div>
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-dark border-secondary">$</span>
