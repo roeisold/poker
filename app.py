@@ -36,8 +36,15 @@ def add_security_headers(response):
         "default-src 'self'; "
         "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
         "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
-        "img-src 'self' data:;"
+        "img-src 'self' data:; "
+        "base-uri 'none'; "
+        "form-action 'self';"
     )
+
+    # Add defensive security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
 
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
@@ -48,22 +55,35 @@ def add_security_headers(response):
 @app.route('/calculate', methods=['POST'])
 def calculate():
     try:
-        data = request.json
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"error": "Invalid request: Payload must be a JSON object"}), 400
+
         friends = data.get('friends', [])
+        buy_ins = data.get('buy_ins', {})
+        chip_counts_data = data.get('chip_counts', {})
+
+        if not isinstance(friends, list) or not isinstance(buy_ins, dict) or not isinstance(chip_counts_data, dict):
+            return jsonify({"error": "Invalid request: Malformed players data"}), 400
+
+        if len(friends) > 50:
+            return jsonify({"error": "Invalid request: Player limit of 50 exceeded"}), 400
 
         # Get chip values from request (sent from frontend localStorage)
         chip_values = data.get('chip_values', DEFAULT_CHIP_VALUES)
         selected_chips = data.get('selected_chips', DEFAULT_SELECTED_CHIPS)
 
         # Calculation logic
-        original_balances = {}
-        chip_totals = {}
-        buy_ins_dict = {}
+        original_balances, chip_totals, buy_ins_dict, seen_names = {}, {}, {}, set()
 
         for i, friend in enumerate(friends):
-            name, _ = friend
-            buy_in = data.get('buy_ins', {}).get(name, 0)
-            chip_counts = data.get('chip_counts', {}).get(name, {})
+            name = friend[0]
+            if name.lower() in seen_names:
+                return jsonify({"error": f"Invalid request: Duplicate name '{name}'"}), 400
+            seen_names.add(name.lower())
+
+            buy_in = buy_ins.get(name, 0)
+            chip_counts = chip_counts_data.get(name, {})
             chip_total = sum(chip_counts.get(color, 0) * chip_values.get(color, 0)
                           for color in selected_chips if color in chip_values)
 
