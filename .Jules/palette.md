@@ -7,3 +7,7 @@
 ## 2025-01-24 - Duplicate Data Prevention
 **Learning:** Preventing duplicate names at the entry point is a simple but high-impact UX win that prevents downstream calculation errors and user confusion.
 **Action:** Implement case-insensitive duplicate checks for list-based inputs.
+
+## 2025-01-24 - Visual Confirmation for Clipboard Actions
+**Learning:** Reusable UX pattern: Toggling button classes (e.g., from `btn-outline-success` to `btn-success`) alongside text changes (e.g., '📋 Copy...' to '✓ Copied!') provides effective, non-disruptive visual confirmation for clipboard operations.
+**Action:** Use transient state changes (2-second timeout) for "Copy" buttons to confirm action without permanent UI shift.
