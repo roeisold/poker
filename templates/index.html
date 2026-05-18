@@ -76,14 +76,17 @@
                     <div id="friendsList"></div>
 
                     <div class="d-flex justify-content-between mt-4">
-                        <button type="button" class="btn btn-outline-secondary" id="addPlayerBtn">+ Add Player</button>
-                        <button type="submit" class="btn btn-success px-4 fw-bold">Calculate Debts</button>
+                        <button type="button" class="btn btn-outline-secondary" id="addPlayerBtn" title="Add a new player row" aria-label="Add a new player row">+ Add Player</button>
+                        <button type="submit" class="btn btn-success px-4 fw-bold" title="Calculate payout transactions" aria-label="Calculate payout transactions">Calculate Debts</button>
                     </div>
                 </form>
 
                 <div id="resultsCard" class="card bg-dark border-secondary mt-5" style="display:none">
                     <div class="card-body p-4">
-                        <h4 class="text-success mb-4">Settlement Plan</h4>
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4 class="text-success mb-0">Settlement Plan</h4>
+                            <button id="copyBtn" onclick="copyToClipboard()" class="btn btn-sm btn-outline-success d-none" title="Copy settlement plan to clipboard" aria-label="Copy settlement plan to clipboard">📋 Copy Plan</button>
+                        </div>
 
                         <!-- Player Summary Table -->
                         <h5 class="mb-3">Player Summary</h5>
@@ -181,8 +184,34 @@
         function clearAllData() {
             if (confirm('This will clear all player data and results. Continue?')) {
                 localStorage.removeItem('playerData');
+                window.lastCalculationData = null;
                 window.location.reload();
             }
+        }
+
+        function copyToClipboard() {
+            if (!window.lastCalculationData || !window.lastCalculationData.transactions) return;
+
+            const transactions = window.lastCalculationData.transactions;
+            let text = "♦️ Poker Settlement Plan ♦️\n\n";
+
+            if (transactions.length === 0) {
+                text += "Everyone is even!";
+            } else {
+                text += transactions.map(t => `${t.payer} pays ${t.receiver} ${t.amount.toFixed(2)}`).join('\n');
+            }
+
+            navigator.clipboard.writeText(text).then(() => {
+                const copyBtn = document.getElementById('copyBtn');
+                const originalText = copyBtn.innerHTML;
+                copyBtn.innerHTML = '✓ Copied!';
+                copyBtn.classList.replace('btn-outline-success', 'btn-success');
+
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalText;
+                    copyBtn.classList.replace('btn-success', 'btn-outline-success');
+                }, 2000);
+            });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -196,7 +225,7 @@
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
                 const escapedName = escapeHTML(playerData?.name || '');
-                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
+                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" title="Player name" aria-label="Player name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" title="Buy in amount" aria-label="Buy in amount" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" title="Remove player" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
 
                 selectedChips.forEach(chip => {
                     const chipCount = playerData?.chipCounts?.[chip] || '0';
@@ -323,6 +352,9 @@
                             <span class="fs-5 fw-bold text-white">${t.amount.toFixed(2)}</span>
                         </div>
                     `).join('') || '<div class="text-center text-muted">Everyone is even!</div>';
+
+                    window.lastCalculationData = data;
+                    document.getElementById('copyBtn').classList.remove('d-none');
 
                     document.getElementById('resultsCard').style.display = 'block';
                     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
