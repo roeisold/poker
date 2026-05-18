@@ -36,8 +36,14 @@ def add_security_headers(response):
         "default-src 'self'; "
         "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
         "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
-        "img-src 'self' data:;"
+        "img-src 'self' data:; "
+        "base-uri 'none'; "
+        "form-action 'self';"
     )
+
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
 
     # Explicitly set Cache-Control for static assets (Flask 2.3+ compatibility)
     if request.path.startswith('/static/'):
@@ -48,8 +54,31 @@ def add_security_headers(response):
 @app.route('/calculate', methods=['POST'])
 def calculate():
     try:
-        data = request.json
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"error": "Invalid request: Payload must be a JSON object"}), 400
+
         friends = data.get('friends', [])
+        if not isinstance(friends, list):
+            return jsonify({"error": "Invalid request: 'friends' must be a list"}), 400
+
+        if len(friends) > 50:
+            return jsonify({"error": "Invalid request: Player limit of 50 exceeded"}), 400
+
+        buy_ins = data.get('buy_ins', {})
+        chip_counts = data.get('chip_counts', {})
+        if not isinstance(buy_ins, dict) or not isinstance(chip_counts, dict):
+            return jsonify({"error": "Invalid request: Malformed players data"}), 400
+
+        # Duplicate player name check (case-insensitive)
+        names_seen = set()
+        for friend in friends:
+            if not isinstance(friend, (list, tuple)) or len(friend) < 1:
+                continue
+            name = str(friend[0]).strip().lower()
+            if name in names_seen:
+                return jsonify({"error": "Invalid request: Duplicate player names detected"}), 400
+            names_seen.add(name)
 
         # Get chip values from request (sent from frontend localStorage)
         chip_values = data.get('chip_values', DEFAULT_CHIP_VALUES)
