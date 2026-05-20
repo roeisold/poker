@@ -59,11 +59,13 @@ def calculate():
         original_balances = {}
         chip_totals = {}
         buy_ins_dict = {}
+        buy_ins_data = data.get('buy_ins', {})
+        chip_counts_data = data.get('chip_counts', {})
 
         for i, friend in enumerate(friends):
             name, _ = friend
-            buy_in = data.get('buy_ins', {}).get(name, 0)
-            chip_counts = data.get('chip_counts', {}).get(name, {})
+            buy_in = buy_ins_data.get(name, 0)
+            chip_counts = chip_counts_data.get(name, {})
             chip_total = sum(chip_counts.get(color, 0) * chip_values.get(color, 0)
                           for color in selected_chips if color in chip_values)
 
