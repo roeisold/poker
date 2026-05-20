@@ -64,7 +64,7 @@
             <div class="chip-display" id="chipDisplay"></div>
 
             <div class="mt-3">
-                <a href="/chip-setup" class="btn btn-sm btn-outline-light rounded-pill">⚙️ Setup Chip Values</a>
+                <a href="/chip-setup" class="btn btn-sm btn-outline-light rounded-pill" title="Setup chip values" aria-label="Setup chip values">⚙️ Setup Chip Values</a>
             </div>
         </div>
     </div>
@@ -83,7 +83,10 @@
 
                 <div id="resultsCard" class="card bg-dark border-secondary mt-5" style="display:none">
                     <div class="card-body p-4">
-                        <h4 class="text-success mb-4">Settlement Plan</h4>
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4 class="text-success mb-0">Settlement Plan</h4>
+                            <button id="copyBtn" onclick="copySettlement()" class="btn btn-sm btn-outline-success d-none">Copy Plan</button>
+                        </div>
 
                         <!-- Player Summary Table -->
                         <h5 class="mb-3">Player Summary</h5>
@@ -185,6 +188,23 @@
             }
         }
 
+        async function copySettlement() {
+            if (!window.lastCalculationData) return;
+            const d = window.lastCalculationData;
+            let t = "--- Poker Settlement Plan ---\n\nPlayer Summary:\n" + d.players_summary.map(p =>
+                `${p.name}: Buy-in ${p.buy_in.toFixed(2)}, Chips ${p.chip_total.toFixed(2)}, Net ${p.profit_loss_balanced >= 0 ? '+' : ''}${p.profit_loss_balanced.toFixed(2)}`
+            ).join('\n');
+            t += d.transactions.length ? "\n\nTransactions:\n" + d.transactions.map(tr => `${tr.payer} pays ${tr.receiver}: ${tr.amount.toFixed(2)}`).join('\n') : "\n\nEveryone is even!";
+            if (d.has_imbalance) t += `\n\nTotal Imbalance: ${d.total_imbalance >= 0 ? '+' : ''}${d.total_imbalance.toFixed(2)} (Adjusted)`;
+            try {
+                await navigator.clipboard.writeText(t);
+                const btn = document.getElementById('copyBtn');
+                const oldText = btn.innerText; btn.innerText = "✅ Copied!";
+                btn.classList.replace('btn-outline-success', 'btn-success');
+                setTimeout(() => { btn.innerText = oldText; btn.classList.replace('btn-success', 'btn-outline-success'); }, 2000);
+            } catch (err) { alert('Failed to copy to clipboard'); }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('playerForm');
             const friendsList = document.getElementById('friendsList');
@@ -196,7 +216,7 @@
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
                 const escapedName = escapeHTML(playerData?.name || '');
-                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
+                let html = `<div class="row g-3 mb-3 align-items-center"><div class="col-6"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="text" class="friend-name" placeholder="Name" required autocomplete="off" value="${escapedName}"></div></div><div class="col-4"><div class="form-control input-wrapper" onclick="this.querySelector('input').focus()"><input type="number" class="buy-in" placeholder="Buy In" step="0.5" autocomplete="off" value="${playerData?.buyIn || ''}"></div></div><div class="col-2 text-end"><button type="button" class="btn btn-outline-danger remove-player-btn w-100" aria-label="Remove player" title="Remove player">×</button></div></div><div class="d-flex flex-wrap justify-content-start">`;
 
                 selectedChips.forEach(chip => {
                     const chipCount = playerData?.chipCounts?.[chip] || '0';
@@ -288,6 +308,8 @@
                     });
 
                     const data = await res.json();
+                    window.lastCalculationData = data;
+                    document.getElementById('copyBtn').classList.remove('d-none');
                 
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
