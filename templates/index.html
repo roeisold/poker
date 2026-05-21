@@ -64,7 +64,7 @@
             <div class="chip-display" id="chipDisplay"></div>
 
             <div class="mt-3">
-                <a href="/chip-setup" class="btn btn-sm btn-outline-light rounded-pill">⚙️ Setup Chip Values</a>
+                <a href="/chip-setup" class="btn btn-sm btn-outline-light rounded-pill" title="Setup chip values" aria-label="Setup chip values">⚙️ Setup Chip Values</a>
             </div>
         </div>
     </div>
@@ -83,7 +83,10 @@
 
                 <div id="resultsCard" class="card bg-dark border-secondary mt-5" style="display:none">
                     <div class="card-body p-4">
-                        <h4 class="text-success mb-4">Settlement Plan</h4>
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4 class="text-success mb-0">Settlement Plan</h4>
+                            <button id="copyBtn" class="btn btn-sm btn-outline-success d-none" onclick="copyPlanToClipboard()" title="Copy settlement plan to clipboard" aria-label="Copy settlement plan to clipboard">📋 Copy Plan</button>
+                        </div>
 
                         <!-- Player Summary Table -->
                         <h5 class="mb-3">Player Summary</h5>
@@ -106,7 +109,7 @@
                         <h5 class="mb-3 mt-4">Transactions</h5>
                         <div id="transactionsList" class="list-group list-group-flush mb-4"></div>
 
-                        <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100">Reset All Data</button>
+                        <button onclick="clearAllData()" class="btn btn-sm btn-outline-secondary w-100" title="Reset all player data and results" aria-label="Reset all player data and results">Reset All Data</button>
                     </div>
                 </div>
             </div>
@@ -146,6 +149,47 @@
         }
 
         updateChipDisplay();
+
+        let lastCalculationData = null;
+
+        async function copyPlanToClipboard() {
+            if (!lastCalculationData) return;
+
+            const btn = document.getElementById('copyBtn');
+            const originalText = btn.innerHTML;
+
+            let text = "--- POKER SETTLEMENT PLAN ---\n\n";
+
+            text += "PLAYER SUMMARY:\n";
+            lastCalculationData.players_summary.forEach(p => {
+                text += `${p.name}: Buy-in: ${p.buy_in.toFixed(2)}, Chips: ${p.chip_total.toFixed(2)}, P/L: ${p.profit_loss_original >= 0 ? '+' : ''}${p.profit_loss_original.toFixed(2)}\n`;
+            });
+
+            if (lastCalculationData.has_imbalance) {
+                text += `\nTotal Imbalance: ${lastCalculationData.total_imbalance >= 0 ? '+' : ''}${lastCalculationData.total_imbalance.toFixed(2)}\n`;
+            }
+
+            text += "\nTRANSACTIONS:\n";
+            if (lastCalculationData.transactions.length > 0) {
+                lastCalculationData.transactions.forEach(t => {
+                    text += `${t.payer} pays ${t.receiver}: ${t.amount.toFixed(2)}\n`;
+                });
+            } else {
+                text += "Everyone is even!\n";
+            }
+
+            try {
+                await navigator.clipboard.writeText(text);
+                btn.innerHTML = "✅ Copied!";
+                btn.classList.replace('btn-outline-success', 'btn-success');
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.replace('btn-success', 'btn-outline-success');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+            }
+        }
 
         // Save player data to localStorage
         function savePlayerData() {
@@ -288,6 +332,8 @@
                     });
 
                     const data = await res.json();
+                    lastCalculationData = data;
+                    document.getElementById('copyBtn').classList.remove('d-none');
                 
                     // Populate player summary table
                     const playersTable = document.getElementById('playersSummaryTable');
